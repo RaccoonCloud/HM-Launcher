@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Local launcher data (user installs / cache — do not publish)
+data/
+
+# Build artifacts (PyInstaller work folders — EXE is copied to project root)
+build/
+dist/
+*.spec
+HarbourMaster.exe
+HarbourMaster.ico
+
+# IDE / editor folders (never publish)
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temp / verify assets
+assets/_verify*
+assets/_discord_src.png
+assets/_f*.png
