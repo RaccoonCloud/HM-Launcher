@@ -13,6 +13,7 @@ from app import branding, catalog, github, icons, install, launch, settings
 from app.catalog import GameDef
 
 APP_NAME = "HarbourMaster"
+APP_VERSION = "1.0.0"
 
 # Nautical-adjacent dark theme
 ACCENT = "#1a8a8a"
@@ -138,7 +139,7 @@ class App(ctk.CTk):
 
     def __init__(self) -> None:
         super().__init__()
-        self.title(APP_NAME)
+        self.title(f"{APP_NAME} {APP_VERSION}")
         self.configure(fg_color=BG)
         self.settings = settings.load_settings()
         self.installs = settings.load_installs()
@@ -530,9 +531,10 @@ class App(ctk.CTk):
         )
         ctk.CTkLabel(
             win,
-            text="Created by RaccoonCloud for the Harbour Masters team and community",
+            text=f"HarbourMaster v{APP_VERSION}\nCreated by RaccoonCloud for the Harbour Masters team and community",
             text_color=MUTED,
             font=ctk.CTkFont(size=12),
+            justify="center",
         ).pack(pady=(4, 16))
 
     def _install_record(self, game_id: str) -> dict[str, Any]:

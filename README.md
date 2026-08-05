@@ -1,5 +1,7 @@
 # HarbourMaster
 
+**Version 1.0.0**
+
 Windows launcher for [Harbour Masters](https://github.com/HarbourMasters) PC ports.
 
 **Created by RaccoonCloud** for the Harbour Masters team and everyone who wants an easy way to install, update, and launch the ports.
@@ -135,6 +137,19 @@ python main.py
 - **Discord:** [Harbour Masters](https://discord.com/invite/shipofharkinian)
 
 Please support the Harbour Masters projects and use only ROMs / dumps you personally own.
+
+---
+
+## Future plans
+
+This is the **v1.0.0** baseline. More improvements and additions are planned, including:
+
+- Easier launcher self-update when a new HarbourMaster version is published
+- Polish and quality-of-life UI improvements
+- Extra helper actions around installs, updates, and Archipelago workflows
+- Support for new Harbour Masters ports as they appear
+
+Feedback from the team and community will help decide what comes next.
 
 Special thank you for your friendship, support, and memories over the years!
 
