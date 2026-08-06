@@ -33,6 +33,7 @@ def default_settings() -> dict[str, Any]:
         # When True, installed games download the newest stable GitHub release on launch
         "auto_update": True,
         "auto_update_apworld": True,
+        "check_launcher_updates": True,
     }
 
 

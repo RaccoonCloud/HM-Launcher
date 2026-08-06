@@ -9,9 +9,10 @@ from typing import Any
 import httpx
 
 from app.catalog import GameDef, score_windows_asset
+from app.version import APP_VERSION, LAUNCHER_REPO
 
 CACHE_TTL_SECONDS = 3600
-USER_AGENT = "HarbourMaster/1.0"
+USER_AGENT = f"HarbourMaster/{APP_VERSION}"
 
 
 @dataclass
@@ -31,8 +32,21 @@ class LatestRelease:
     fetched_at: float
 
 
+@dataclass
+class LauncherRelease:
+    tag: str
+    name: str
+    html_url: str
+    asset: ReleaseAsset | None
+    fetched_at: float
+
+
 def _cache_path(data_dir: Path, game_id: str) -> Path:
     return data_dir / "cache" / f"{game_id}_latest.json"
+
+
+def _launcher_cache_path(data_dir: Path) -> Path:
+    return data_dir / "cache" / "launcher_latest.json"
 
 
 def _parse_cache(raw: dict[str, Any]) -> LatestRelease:
@@ -149,4 +163,92 @@ def fetch_latest_release(
         fetched_at=time.time(),
     )
     _save_cache(cache_file, release)
+    return release
+
+
+def pick_launcher_asset(assets: list[dict[str, Any]]) -> ReleaseAsset | None:
+    """Prefer HMLauncher zip, then any zip, then HarbourMaster.exe."""
+    scored: list[tuple[int, ReleaseAsset]] = []
+    for asset in assets:
+        name = str(asset.get("name", ""))
+        url = str(asset.get("browser_download_url", ""))
+        if not url:
+            continue
+        lower = name.lower()
+        score = -1
+        if lower.endswith(".zip") and "hmlauncher" in lower:
+            score = 300
+        elif lower.endswith(".zip") and "harbourmaster" in lower:
+            score = 200
+        elif lower.endswith(".zip"):
+            score = 100
+        elif lower == "harbourmaster.exe":
+            score = 50
+        if score < 0:
+            continue
+        scored.append(
+            (
+                score,
+                ReleaseAsset(name=name, download_url=url, size=int(asset.get("size") or 0)),
+            )
+        )
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored[0][1]
+
+
+def fetch_launcher_latest(
+    data_dir: Path,
+    *,
+    force: bool = False,
+) -> LauncherRelease:
+    cache_file = _launcher_cache_path(data_dir)
+    if not force and cache_file.exists():
+        try:
+            raw = json.loads(cache_file.read_text(encoding="utf-8"))
+            fetched = float(raw.get("fetched_at", 0))
+            if time.time() - fetched <= CACHE_TTL_SECONDS:
+                asset_raw = raw.get("asset")
+                return LauncherRelease(
+                    tag=str(raw.get("tag", "")),
+                    name=str(raw.get("name", "")),
+                    html_url=str(raw.get("html_url", "")),
+                    asset=ReleaseAsset(**asset_raw) if asset_raw else None,
+                    fetched_at=fetched,
+                )
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+
+    url = f"https://api.github.com/repos/{LAUNCHER_REPO}/releases/latest"
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/vnd.github+json",
+    }
+    with httpx.Client(timeout=60.0, follow_redirects=True, headers=headers) as client:
+        resp = client.get(url)
+        resp.raise_for_status()
+        data = resp.json()
+
+    release = LauncherRelease(
+        tag=str(data.get("tag_name") or ""),
+        name=str(data.get("name") or data.get("tag_name") or ""),
+        html_url=str(data.get("html_url") or ""),
+        asset=pick_launcher_asset(list(data.get("assets") or [])),
+        fetched_at=time.time(),
+    )
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(
+        json.dumps(
+            {
+                "tag": release.tag,
+                "name": release.name,
+                "html_url": release.html_url,
+                "asset": asdict(release.asset) if release.asset else None,
+                "fetched_at": release.fetched_at,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     return release

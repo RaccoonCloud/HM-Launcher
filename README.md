@@ -1,6 +1,6 @@
 # HarbourMaster
 
-**Version 1.0.0**
+**Version 1.5.0**
 
 Windows launcher for [Harbour Masters](https://github.com/HarbourMasters) PC ports.
 
@@ -15,7 +15,9 @@ Game builds come from the HarbourMasters GitHub releases. You must use your own 
 - Lists Harbour Masters ports in one place (SoH, 2Ship, Starship, SpaghettiKart, Ghostship, Lighthouse, Archipelago SoH)
 - Downloads / updates the latest stable Win64 release from GitHub
 - Launches installed games, or lets you point at folders you already have
-- Optional auto-update when a new release is published
+- **Notifies you** when installed games have a newer build (banner + Update button on the card)
+- Optional auto-update when a new game release is published
+- **Launcher self-update** — notifies when a new HarbourMaster version is on GitHub Releases and can install it from inside the app
 - Archipelago SoH: download `oot_soh.apworld` into your Archipelago custom worlds folder
 - Quick link to the Harbour Masters Discord
 
@@ -142,14 +144,17 @@ Please support the Harbour Masters projects and use only ROMs / dumps you person
 
 ## Future plans
 
-This is the **v1.0.0** baseline. More improvements and additions are planned, including:
+**v1.5.0** adds game-update notifications and launcher self-update. More improvements are still planned, including:
 
-- Easier launcher self-update when a new HarbourMaster version is published
-- Polish and quality-of-life UI improvements
-- Extra helper actions around installs, updates, and Archipelago workflows
+- Further UI polish and quality-of-life tweaks
+- Extra helper actions around installs and Archipelago workflows
 - Support for new Harbour Masters ports as they appear
 
 Feedback from the team and community will help decide what comes next.
+
+### Note on launcher self-update
+
+Self-update reads the latest release from `RaccoonCloud/HM-Launcher`. For other PCs to download that update automatically, the release assets need to be downloadable without a private login (make the repo public, or publish releases in a way that allows anonymous download).
 
 Special thank you for your friendship, support, and memories over the years!
 

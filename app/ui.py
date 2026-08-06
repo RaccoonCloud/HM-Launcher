@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import threading
 import webbrowser
 from pathlib import Path
@@ -9,15 +10,15 @@ from typing import Any
 import customtkinter as ctk
 import tkinter as tk
 
-from app import branding, catalog, github, icons, install, launch, settings
+from app import branding, catalog, github, icons, install, launch, settings, self_update
 from app.catalog import GameDef
-
-APP_NAME = "HarbourMaster"
-APP_VERSION = "1.0.0"
+from app.version import APP_NAME, APP_VERSION, is_newer
 
 # Nautical-adjacent dark theme
 ACCENT = "#1a8a8a"
 ACCENT_HOVER = "#147070"
+WARN = "#c9a227"
+WARN_HOVER = "#a8861f"
 BG = "#12161c"
 PANEL = "#1a222c"
 CARD = "#222b36"
@@ -128,6 +129,25 @@ class GameCard(ctk.CTkFrame):
         self._icon_ref = image
         self._icon_label.configure(image=image, text="")
 
+    def set_update_available(self, available: bool, latest_tag: str = "") -> None:
+        if available:
+            label = f"Update ({latest_tag})" if latest_tag else "Update available"
+            self.install_btn.configure(
+                text=label,
+                width=140,
+                fg_color=WARN,
+                hover_color=WARN_HOVER,
+                text_color="#1a1a1a",
+            )
+        else:
+            self.install_btn.configure(
+                text="Install / Update",
+                width=130,
+                fg_color="#1f6aa5",
+                hover_color="#144870",
+                text_color="#DCE4EE",
+            )
+
     def set_busy(self, busy: bool) -> None:
         state = "disabled" if busy else "normal"
         self.launch_btn.configure(state=state)
@@ -161,6 +181,9 @@ class App(ctk.CTk):
         self._splash_started_at = 0.0
         self._boot_ready = False
         self._main_ready = False
+        self._launcher_release: github.LauncherRelease | None = None
+        self._game_update_prompted = False
+        self._launcher_prompted = False
 
         branding.apply_window_icon(self)
         settings.ensure_dirs()
@@ -288,6 +311,7 @@ class App(ctk.CTk):
         self.after(20, lambda: self._attach_game_icons(0))
         # GitHub can wait — statuses already came from disk cache
         self.after(12000, lambda: self._refresh_releases(force=False, schedule_auto_update=False))
+        self.after(14000, lambda: self._check_launcher_update(force=False, prompt=True))
         self.after(PERIODIC_CHECK_MS, self._periodic_check)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -360,8 +384,9 @@ class App(ctk.CTk):
         # Splash left row 0 weighted — reset so the header stays compact
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure(2, weight=0)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(3, weight=0)
 
         top = ctk.CTkFrame(self, fg_color=PANEL, corner_radius=0)
         top.grid(row=0, column=0, sticky="ew")
@@ -411,8 +436,42 @@ class App(ctk.CTk):
             row=0, column=3, padx=(6, 12), pady=4
         )
 
+        self._notify = ctk.CTkFrame(self, fg_color="#2a2416", corner_radius=0)
+        self._notify.grid(row=1, column=0, sticky="ew")
+        self._notify.grid_columnconfigure(0, weight=1)
+        self._notify_var = ctk.StringVar(value="")
+        ctk.CTkLabel(
+            self._notify,
+            textvariable=self._notify_var,
+            text_color="#f0e6c8",
+            anchor="w",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
+        self._notify_action_btn = ctk.CTkButton(
+            self._notify,
+            text="Update",
+            width=110,
+            height=28,
+            fg_color=WARN,
+            hover_color=WARN_HOVER,
+            text_color="#1a1a1a",
+            command=self._on_notify_action,
+        )
+        self._notify_action_btn.grid(row=0, column=1, padx=6, pady=6)
+        ctk.CTkButton(
+            self._notify,
+            text="Dismiss",
+            width=80,
+            height=28,
+            fg_color="transparent",
+            hover_color="#3a3424",
+            command=self._hide_notify,
+        ).grid(row=0, column=2, padx=(0, 12), pady=6)
+        self._notify_action = ""
+        self._hide_notify()
+
         scroll = ctk.CTkScrollableFrame(self, fg_color=BG)
-        scroll.grid(row=1, column=0, sticky="nsew", padx=10, pady=(4, 4))
+        scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=(4, 4))
         scroll.grid_columnconfigure(0, weight=1)
 
         for i, game in enumerate(catalog.GAMES):
@@ -431,7 +490,7 @@ class App(ctk.CTk):
             self._update_card_status(game)
 
         foot = ctk.CTkFrame(self, fg_color=PANEL, corner_radius=0)
-        foot.grid(row=2, column=0, sticky="ew")
+        foot.grid(row=3, column=0, sticky="ew")
         foot.grid_columnconfigure(0, weight=1)
         self.status_var = ctk.StringVar(
             value="Tracks latest releases from github.com/HarbourMasters. Provide your own legal ROMs."
@@ -461,12 +520,33 @@ class App(ctk.CTk):
     def _set_status(self, text: str) -> None:
         self.status_var.set(text)
 
+    def _hide_notify(self) -> None:
+        self._notify_action = ""
+        self._notify_var.set("")
+        self._notify.grid_remove()
+
+    def _show_notify(self, text: str, *, action: str, button: str = "Update") -> None:
+        self._notify_action = action
+        self._notify_var.set(text)
+        self._notify_action_btn.configure(text=button)
+        self._notify.grid()
+
+    def _on_notify_action(self) -> None:
+        action = self._notify_action
+        if action == "games":
+            self._hide_notify()
+            self._queue_auto_updates()
+        elif action == "launcher":
+            self._hide_notify()
+            self._start_launcher_update()
+
     def _open_discord(self) -> None:
         webbrowser.open(branding.DISCORD_URL)
 
     def _periodic_check(self) -> None:
         if not self._busy and not self._auto_updating:
             self._refresh_releases(force=False, schedule_auto_update=True)
+            self._check_launcher_update(force=False, prompt=True)
         self.after(PERIODIC_CHECK_MS, self._periodic_check)
 
     def _pick_library(self) -> None:
@@ -479,7 +559,7 @@ class App(ctk.CTk):
     def _open_settings(self) -> None:
         win = ctk.CTkToplevel(self)
         win.title("Settings")
-        win.geometry("560x420")
+        win.geometry("560x480")
         win.transient(self)
         win.grab_set()
 
@@ -516,26 +596,48 @@ class App(ctk.CTk):
             variable=apworld_var,
         ).pack(anchor="w", padx=16, pady=(4, 4))
 
+        launcher_var = ctk.BooleanVar(value=bool(self.settings.get("check_launcher_updates", True)))
+        ctk.CTkCheckBox(
+            win,
+            text="Check for HarbourMaster launcher updates on startup",
+            variable=launcher_var,
+        ).pack(anchor="w", padx=16, pady=(4, 4))
+
         def save() -> None:
             self.settings["library_root"] = lib_var.get().strip()
             self.settings["archipelago_custom_worlds"] = ap_var.get().strip()
             self.settings["auto_update"] = bool(auto_var.get())
             self.settings["auto_update_apworld"] = bool(apworld_var.get())
+            self.settings["check_launcher_updates"] = bool(launcher_var.get())
             self.library_var.set(self.settings["library_root"])
             settings.save_settings(self.settings)
             win.destroy()
             self._set_status("Settings saved.")
 
-        ctk.CTkButton(win, text="Save", fg_color=ACCENT, hover_color=ACCENT_HOVER, command=save).pack(
-            pady=(20, 8)
-        )
+        btn_row = ctk.CTkFrame(win, fg_color="transparent")
+        btn_row.pack(pady=(18, 8))
+        ctk.CTkButton(
+            btn_row,
+            text="Check for launcher update",
+            width=190,
+            command=lambda: self._check_launcher_update(force=True, prompt=True),
+        ).pack(side="left", padx=6)
+        ctk.CTkButton(
+            btn_row,
+            text="Save",
+            width=100,
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            command=save,
+        ).pack(side="left", padx=6)
+
         ctk.CTkLabel(
             win,
             text=f"HarbourMaster v{APP_VERSION}\nCreated by RaccoonCloud for the Harbour Masters team and community",
             text_color=MUTED,
             font=ctk.CTkFont(size=12),
             justify="center",
-        ).pack(pady=(4, 16))
+        ).pack(pady=(8, 16))
 
     def _install_record(self, game_id: str) -> dict[str, Any]:
         return dict(self.installs.get(game_id) or {})
@@ -579,17 +681,43 @@ class App(ctk.CTk):
             if installed_tag:
                 status += f"  ·  installed {installed_tag}"
             if latest and installed_tag and latest != installed_tag:
-                status += f"  ·  update available ({latest})"
+                status += f"  ·  UPDATE AVAILABLE ({latest})"
             elif latest and not installed_tag:
                 status += f"  ·  latest {latest} (will auto-update)"
             elif latest:
                 status += "  ·  up to date"
         card.status_var.set(status)
         card.launch_btn.configure(state="normal" if exe else "disabled")
+        needs = bool(exe and latest and installed_tag and latest != installed_tag)
+        card.set_update_available(needs, latest if needs else "")
+
+    def _games_updates_pending(self) -> list[GameDef]:
+        return [g for g in catalog.GAMES if self._needs_update(g)]
+
+    def _notify_game_updates(self) -> None:
+        pending = self._games_updates_pending()
+        if not pending:
+            if self._notify_action == "games":
+                self._hide_notify()
+            return
+        names = ", ".join(g.name for g in pending)
+        self._show_notify(
+            f"Game update available: {names}",
+            action="games",
+            button="Update games",
+        )
+        if not self._game_update_prompted and not bool(self.settings.get("auto_update", True)):
+            self._game_update_prompted = True
+            messagebox.showinfo(
+                APP_NAME,
+                f"Updates are available for:\n\n{names}\n\n"
+                "Use the yellow banner or each game's Update button.",
+            )
 
     def _refresh_all_cards(self) -> None:
         for game in catalog.GAMES:
             self._update_card_status(game)
+        self._notify_game_updates()
 
     def _refresh_releases(
         self,
@@ -615,13 +743,113 @@ class App(ctk.CTk):
             def done() -> None:
                 self._releases.update(results)
                 self._refresh_all_cards()
+                pending = self._games_updates_pending()
                 if errors:
                     self._set_status("Some release checks failed: " + "; ".join(errors[:2]))
+                elif pending:
+                    self._set_status(
+                        f"Update available for {len(pending)} installed game(s)."
+                    )
                 else:
                     self._set_status("Release info updated from HarbourMasters.")
                 if schedule_auto_update and bool(self.settings.get("auto_update", True)):
-                    # Give the UI a beat before any download churn
                     self.after(5000, self._queue_auto_updates)
+
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _check_launcher_update(self, *, force: bool = False, prompt: bool = True) -> None:
+        if not bool(self.settings.get("check_launcher_updates", True)) and not force:
+            return
+        if self._busy:
+            return
+
+        def work() -> None:
+            err = ""
+            release: github.LauncherRelease | None = None
+            try:
+                release = github.fetch_launcher_latest(settings.DATA_DIR, force=force)
+            except Exception as exc:  # noqa: BLE001
+                err = str(exc)
+
+            def done() -> None:
+                if err:
+                    if force:
+                        self._set_status(f"Launcher update check failed: {err}")
+                    return
+                if release is None:
+                    return
+                self._launcher_release = release
+                if not is_newer(release.tag, APP_VERSION):
+                    if force:
+                        messagebox.showinfo(
+                            APP_NAME,
+                            f"HarbourMaster is up to date (v{APP_VERSION}).",
+                        )
+                        self._set_status(f"Launcher up to date (v{APP_VERSION}).")
+                    return
+                self._show_notify(
+                    f"HarbourMaster update available: {release.tag} (you have v{APP_VERSION})",
+                    action="launcher",
+                    button="Update launcher",
+                )
+                self._set_status(f"Launcher update available: {release.tag}")
+                if prompt and not self._launcher_prompted:
+                    self._launcher_prompted = True
+                    if messagebox.askyesno(
+                        APP_NAME,
+                        f"A new HarbourMaster is available: {release.tag}\n\n"
+                        f"You are on v{APP_VERSION}.\n\n"
+                        "Update now from the launcher?",
+                    ):
+                        self._start_launcher_update()
+
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _start_launcher_update(self) -> None:
+        release = self._launcher_release
+        if release is None or release.asset is None:
+            messagebox.showwarning(
+                APP_NAME,
+                "No downloadable launcher package found on the latest release.",
+            )
+            return
+        if not getattr(sys, "frozen", False):
+            messagebox.showinfo(
+                APP_NAME,
+                "Self-update runs from the built HarbourMaster.exe.\n"
+                f"Open the release page instead:\n{release.html_url}",
+            )
+            if release.html_url:
+                webbrowser.open(release.html_url)
+            return
+        if self._busy:
+            return
+        self._busy = True
+        self._set_status(f"Updating HarbourMaster to {release.tag}…")
+
+        def work() -> None:
+            err: Exception | None = None
+            try:
+                self_update.apply_launcher_update(
+                    release.asset,
+                    downloads_dir=settings.DATA_DIR / "downloads",
+                    on_progress=lambda msg: self.after(0, lambda m=msg: self._set_status(m)),
+                )
+            except Exception as exc:  # noqa: BLE001
+                err = exc
+
+            def done() -> None:
+                self._busy = False
+                if err is not None:
+                    messagebox.showerror(APP_NAME, f"Launcher update failed:\n{err}")
+                    self._set_status(f"Launcher update failed: {err}")
+                    return
+                # Apply script will restart us — close cleanly
+                self.destroy()
 
             self.after(0, done)
 
