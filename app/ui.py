@@ -176,19 +176,17 @@ class GameCard(ctk.CTkFrame):
             if not self._update_packed:
                 self.update_btn.pack(side="left", padx=4, after=self.install_btn)
                 self._update_packed = True
-            self.install_btn.configure(text="Reinstall")
         else:
             if self._update_packed:
                 self.update_btn.pack_forget()
                 self._update_packed = False
-            # Install vs Reinstall decided by caller via set_installed
-            pass
+        # Primary download action stays "Install" (fresh install or overwrite).
+        self.install_btn.configure(text="Install")
 
-    def set_installed(self, installed: bool) -> None:
-        if self._update_packed:
-            self.install_btn.configure(text="Reinstall")
-        else:
-            self.install_btn.configure(text="Install" if not installed else "Reinstall")
+    def set_installed(self, _installed: bool) -> None:
+        # Always "Install" — even if a copy is already on disk.
+        # Auto-detected ports used to show "Reinstall" and confuse people.
+        self.install_btn.configure(text="Install")
 
     def set_changelog_available(self, available: bool) -> None:
         if available and not self._changelog_packed:
@@ -662,6 +660,15 @@ class App(ctk.CTk):
             text="Auto-update installed games when HarbourMasters publishes a new release",
             variable=auto_var,
         ).pack(anchor="w", padx=16, pady=(18, 4))
+        ctk.CTkLabel(
+            win,
+            text="Only games this launcher installed (known version). Detected/linked folders stay until you click Update.",
+            text_color=MUTED,
+            wraplength=500,
+            justify="left",
+            anchor="w",
+            font=ctk.CTkFont(size=11),
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
         apworld_var = ctk.BooleanVar(value=bool(self.settings.get("auto_update_apworld", True)))
         ctk.CTkCheckBox(
@@ -729,13 +736,17 @@ class App(ctk.CTk):
         return None
 
     def _needs_update(self, game: GameDef) -> bool:
-        """True when this game is installed and latest stable tag differs."""
+        """True when installed version is known and differs from latest stable."""
         if not self._exe_for(game):
             return False
         release = self._releases.get(game.id)
         if not release or not release.tag or not release.windows_zip:
             return False
         installed_tag = str(self._install_record(game.id).get("version_tag", "") or "")
+        # Missing tag = discovered/linked install we have not tracked yet.
+        # Do not auto-download in that case (first launch used to re-pull everything).
+        if not installed_tag:
+            return False
         return installed_tag != release.tag
 
     def _update_card_status(self, game: GameDef) -> None:
@@ -758,14 +769,20 @@ class App(ctk.CTk):
             if latest and installed_tag and latest != installed_tag:
                 status += f"  ·  UPDATE AVAILABLE ({latest})"
             elif latest and not installed_tag:
-                status += f"  ·  latest {latest}"
+                status += f"  ·  version unknown (use Update to sync)"
             elif latest:
                 status += "  ·  up to date"
         card.status_var.set(status)
         card.launch_btn.configure(state="normal" if exe else "disabled")
-        needs = bool(exe and latest and installed_tag and latest != installed_tag)
+        # Show Update for a known outdated tag, or for a linked install with no tag
+        # (manual only — auto-update uses _needs_update and skips unknown tags).
+        show_update = bool(
+            exe
+            and latest
+            and ((installed_tag and latest != installed_tag) or not installed_tag)
+        )
         card.set_installed(bool(exe))
-        card.set_update_available(needs, latest if needs else "")
+        card.set_update_available(show_update, latest if show_update else "")
         card.set_changelog_available(bool(body.strip()) or bool(latest))
 
     def _show_game_changelog(self, game: GameDef) -> None:

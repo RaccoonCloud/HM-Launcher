@@ -7,6 +7,7 @@
 - Clear yellow **Update** button per game when a newer HarbourMasters build is available
 - **What's new** — read that release’s changelog (GitHub release body) in the launcher
 - Footer shows **HarbourMaster v1.8.0** and an **Update Launcher** button
+- **Fix:** first launch no longer auto-downloads every game it finds on disk — auto-update only runs for installs with a known version tag
 
 ## Install
 1. Download `HMLauncher-v1.8.0.zip`
