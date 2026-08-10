@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 APP_NAME = "HarbourMaster"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.8.0"
 
 # GitHub repo that publishes HarbourMaster / HMLauncher releases
 LAUNCHER_REPO = "RaccoonCloud/HM-Launcher"

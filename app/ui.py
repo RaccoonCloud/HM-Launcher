@@ -42,6 +42,7 @@ class GameCard(ctk.CTkFrame):
         on_install: Any,
         on_browse: Any,
         on_folder: Any,
+        on_changelog: Any | None = None,
         on_apworld: Any | None = None,
         icon_image: ctk.CTkImage | None = None,
     ) -> None:
@@ -51,7 +52,7 @@ class GameCard(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=1)
 
         icon_wrap = ctk.CTkFrame(self, fg_color="transparent", width=84, height=84)
-        icon_wrap.grid(row=0, column=0, rowspan=4, padx=(12, 4), pady=12, sticky="nw")
+        icon_wrap.grid(row=0, column=0, rowspan=5, padx=(12, 4), pady=12, sticky="nw")
         icon_wrap.grid_propagate(False)
         self._icon_label = ctk.CTkLabel(icon_wrap, text="")
         self._icon_label.place(relx=0.5, rely=0.5, anchor="center")
@@ -78,6 +79,16 @@ class GameCard(ctk.CTkFrame):
         )
         self.blurb.grid(row=1, column=1, sticky="ew", padx=(4, 14), pady=(2, 0))
 
+        self.version_var = ctk.StringVar(value="Installed: —")
+        self.version = ctk.CTkLabel(
+            self,
+            textvariable=self.version_var,
+            font=ctk.CTkFont(size=12),
+            text_color=MUTED,
+            anchor="w",
+        )
+        self.version.grid(row=2, column=1, sticky="ew", padx=(4, 14), pady=(4, 0))
+
         self.status_var = ctk.StringVar(value="Checking…")
         self.status = ctk.CTkLabel(
             self,
@@ -86,10 +97,10 @@ class GameCard(ctk.CTkFrame):
             text_color=TEXT,
             anchor="w",
         )
-        self.status.grid(row=2, column=1, sticky="ew", padx=(4, 14), pady=(8, 0))
+        self.status.grid(row=3, column=1, sticky="ew", padx=(4, 14), pady=(4, 0))
 
         btns = ctk.CTkFrame(self, fg_color="transparent")
-        btns.grid(row=3, column=1, sticky="ew", padx=(0, 10), pady=(10, 12))
+        btns.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=(10, 12))
 
         self.launch_btn = ctk.CTkButton(
             btns,
@@ -103,11 +114,35 @@ class GameCard(ctk.CTkFrame):
 
         self.install_btn = ctk.CTkButton(
             btns,
-            text="Install / Update",
-            width=130,
+            text="Install",
+            width=100,
+            fg_color="#1f6aa5",
+            hover_color="#144870",
             command=lambda: on_install(game),
         )
         self.install_btn.pack(side="left", padx=4)
+
+        self.update_btn = ctk.CTkButton(
+            btns,
+            text="Update",
+            width=100,
+            fg_color=WARN,
+            hover_color=WARN_HOVER,
+            text_color="#1a1a1a",
+            command=lambda: on_install(game),
+        )
+        # Shown only when an update is available
+        self._update_packed = False
+
+        self.changelog_btn = ctk.CTkButton(
+            btns,
+            text="What's new",
+            width=100,
+            fg_color="#3a4555",
+            hover_color="#2f3947",
+            command=lambda: on_changelog(game) if on_changelog else None,
+        )
+        self._changelog_packed = False
 
         ctk.CTkButton(btns, text="Browse", width=80, command=lambda: on_browse(game)).pack(
             side="left", padx=4
@@ -129,29 +164,47 @@ class GameCard(ctk.CTkFrame):
         self._icon_ref = image
         self._icon_label.configure(image=image, text="")
 
+    def set_versions(self, *, installed: str, latest: str) -> None:
+        inst = installed or "—"
+        lat = latest or "—"
+        self.version_var.set(f"Installed: {inst}   ·   Latest: {lat}")
+
     def set_update_available(self, available: bool, latest_tag: str = "") -> None:
         if available:
-            label = f"Update ({latest_tag})" if latest_tag else "Update available"
-            self.install_btn.configure(
-                text=label,
-                width=140,
-                fg_color=WARN,
-                hover_color=WARN_HOVER,
-                text_color="#1a1a1a",
-            )
+            label = f"Update to {latest_tag}" if latest_tag else "Update"
+            self.update_btn.configure(text=label)
+            if not self._update_packed:
+                self.update_btn.pack(side="left", padx=4, after=self.install_btn)
+                self._update_packed = True
+            self.install_btn.configure(text="Reinstall")
         else:
-            self.install_btn.configure(
-                text="Install / Update",
-                width=130,
-                fg_color="#1f6aa5",
-                hover_color="#144870",
-                text_color="#DCE4EE",
-            )
+            if self._update_packed:
+                self.update_btn.pack_forget()
+                self._update_packed = False
+            # Install vs Reinstall decided by caller via set_installed
+            pass
+
+    def set_installed(self, installed: bool) -> None:
+        if self._update_packed:
+            self.install_btn.configure(text="Reinstall")
+        else:
+            self.install_btn.configure(text="Install" if not installed else "Reinstall")
+
+    def set_changelog_available(self, available: bool) -> None:
+        if available and not self._changelog_packed:
+            after = self.update_btn if self._update_packed else self.install_btn
+            self.changelog_btn.pack(side="left", padx=4, after=after)
+            self._changelog_packed = True
+        elif not available and self._changelog_packed:
+            self.changelog_btn.pack_forget()
+            self._changelog_packed = False
 
     def set_busy(self, busy: bool) -> None:
         state = "disabled" if busy else "normal"
         self.launch_btn.configure(state=state)
         self.install_btn.configure(state=state)
+        self.update_btn.configure(state=state)
+        self.changelog_btn.configure(state=state)
 
 
 class App(ctk.CTk):
@@ -482,6 +535,7 @@ class App(ctk.CTk):
                 on_install=self._install_game,
                 on_browse=self._browse_game,
                 on_folder=self._open_game_folder,
+                on_changelog=self._show_game_changelog,
                 on_apworld=self._download_apworld,
                 icon_image=self._game_ctk_icons.get(game.id),
             )
@@ -503,6 +557,25 @@ class App(ctk.CTk):
             font=ctk.CTkFont(size=12),
         ).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
 
+        self._launcher_version_var = ctk.StringVar(value=f"v{APP_VERSION}")
+        ctk.CTkLabel(
+            foot,
+            textvariable=self._launcher_version_var,
+            text_color=MUTED,
+            font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=1, padx=(8, 6), pady=8)
+
+        self._launcher_update_btn = ctk.CTkButton(
+            foot,
+            text="Update Launcher",
+            width=130,
+            height=28,
+            fg_color="#3a4555",
+            hover_color="#2f3947",
+            command=self._on_footer_launcher_update,
+        )
+        self._launcher_update_btn.grid(row=0, column=2, padx=6, pady=6)
+
         self._discord_icon = branding.load_discord_ctk_image((24, 24))
         discord_btn = ctk.CTkButton(
             foot,
@@ -515,7 +588,8 @@ class App(ctk.CTk):
             corner_radius=6,
             command=self._open_discord,
         )
-        discord_btn.grid(row=0, column=1, padx=(0, 12), pady=6, sticky="e")
+        discord_btn.grid(row=0, column=3, padx=(0, 12), pady=6, sticky="e")
+        self._refresh_launcher_footer()
 
     def _set_status(self, text: str) -> None:
         self.status_var.set(text)
@@ -671,6 +745,9 @@ class App(ctk.CTk):
         installed_tag = str(entry.get("version_tag", "") or "")
         release = self._releases.get(game.id)
         latest = release.tag if release else ""
+        body = (release.body if release else "") or ""
+
+        card.set_versions(installed=installed_tag if exe else "—", latest=latest or "—")
 
         if not exe:
             status = "Not installed"
@@ -678,18 +755,110 @@ class App(ctk.CTk):
                 status += f"  ·  latest {latest}"
         else:
             status = f"Ready  ·  {exe.name}"
-            if installed_tag:
-                status += f"  ·  installed {installed_tag}"
             if latest and installed_tag and latest != installed_tag:
                 status += f"  ·  UPDATE AVAILABLE ({latest})"
             elif latest and not installed_tag:
-                status += f"  ·  latest {latest} (will auto-update)"
+                status += f"  ·  latest {latest}"
             elif latest:
                 status += "  ·  up to date"
         card.status_var.set(status)
         card.launch_btn.configure(state="normal" if exe else "disabled")
         needs = bool(exe and latest and installed_tag and latest != installed_tag)
+        card.set_installed(bool(exe))
         card.set_update_available(needs, latest if needs else "")
+        card.set_changelog_available(bool(body.strip()) or bool(latest))
+
+    def _show_game_changelog(self, game: GameDef) -> None:
+        release = self._releases.get(game.id)
+        if release is None:
+            messagebox.showinfo(APP_NAME, f"No release info yet for {game.name}. Try Refresh.")
+            return
+        body = (release.body or "").strip()
+        if not body:
+            if release.html_url:
+                if messagebox.askyesno(
+                    APP_NAME,
+                    f"No changelog text was published for {game.name} {release.tag}.\n\n"
+                    "Open the GitHub release page instead?",
+                ):
+                    webbrowser.open(release.html_url)
+            else:
+                messagebox.showinfo(APP_NAME, f"No changelog available for {game.name}.")
+            return
+        self._open_changelog_window(
+            title=f"{game.name} — {release.tag}",
+            body=body,
+            html_url=release.html_url,
+        )
+
+    def _open_changelog_window(self, *, title: str, body: str, html_url: str = "") -> None:
+        win = ctk.CTkToplevel(self)
+        win.title(title)
+        win.geometry("720x480")
+        win.transient(self)
+        win.grab_set()
+        ctk.CTkLabel(
+            win,
+            text=title,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=TEXT,
+            anchor="w",
+        ).pack(fill="x", padx=16, pady=(16, 8))
+        box = ctk.CTkTextbox(win, wrap="word", font=ctk.CTkFont(size=13))
+        box.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        box.insert("1.0", body)
+        box.configure(state="disabled")
+        row = ctk.CTkFrame(win, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=(0, 16))
+        if html_url:
+            ctk.CTkButton(
+                row,
+                text="Open on GitHub",
+                width=140,
+                command=lambda: webbrowser.open(html_url),
+            ).pack(side="left")
+        ctk.CTkButton(row, text="Close", width=100, command=win.destroy).pack(side="right")
+
+    def _refresh_launcher_footer(self) -> None:
+        release = self._launcher_release
+        if release and is_newer(release.tag, APP_VERSION):
+            self._launcher_version_var.set(f"v{APP_VERSION}  →  {release.tag}")
+            self._launcher_update_btn.configure(
+                text="Update Launcher",
+                fg_color=WARN,
+                hover_color=WARN_HOVER,
+                text_color="#1a1a1a",
+                state="normal",
+            )
+        else:
+            self._launcher_version_var.set(f"HarbourMaster v{APP_VERSION}")
+            self._launcher_update_btn.configure(
+                text="Update Launcher",
+                fg_color="#3a4555",
+                hover_color="#2f3947",
+                text_color="#DCE4EE",
+                state="normal",
+            )
+
+    def _on_footer_launcher_update(self) -> None:
+        release = self._launcher_release
+        if release and is_newer(release.tag, APP_VERSION):
+            body = (release.body or "").strip()
+            if body:
+                preview = body if len(body) < 1200 else body[:1200] + "\n\n…"
+                if messagebox.askyesno(
+                    APP_NAME,
+                    f"HarbourMaster {release.tag}\n\n{preview}\n\nUpdate launcher now?",
+                ):
+                    self._start_launcher_update()
+                return
+            if messagebox.askyesno(
+                APP_NAME,
+                f"Update HarbourMaster from v{APP_VERSION} to {release.tag}?",
+            ):
+                self._start_launcher_update()
+            return
+        self._check_launcher_update(force=True, prompt=True)
 
     def _games_updates_pending(self) -> list[GameDef]:
         return [g for g in catalog.GAMES if self._needs_update(g)]
@@ -711,7 +880,7 @@ class App(ctk.CTk):
             messagebox.showinfo(
                 APP_NAME,
                 f"Updates are available for:\n\n{names}\n\n"
-                "Use the yellow banner or each game's Update button.",
+                "Use the yellow banner, each game's Update button, or What's new for the changelog.",
             )
 
     def _refresh_all_cards(self) -> None:
@@ -777,10 +946,13 @@ class App(ctk.CTk):
                 if err:
                     if force:
                         self._set_status(f"Launcher update check failed: {err}")
+                    self._refresh_launcher_footer()
                     return
                 if release is None:
+                    self._refresh_launcher_footer()
                     return
                 self._launcher_release = release
+                self._refresh_launcher_footer()
                 if not is_newer(release.tag, APP_VERSION):
                     if force:
                         messagebox.showinfo(
@@ -797,10 +969,12 @@ class App(ctk.CTk):
                 self._set_status(f"Launcher update available: {release.tag}")
                 if prompt and not self._launcher_prompted:
                     self._launcher_prompted = True
+                    body = (release.body or "").strip()
+                    extra = f"\n\n{body[:800]}{'…' if len(body) > 800 else ''}" if body else ""
                     if messagebox.askyesno(
                         APP_NAME,
                         f"A new HarbourMaster is available: {release.tag}\n\n"
-                        f"You are on v{APP_VERSION}.\n\n"
+                        f"You are on v{APP_VERSION}.{extra}\n\n"
                         "Update now from the launcher?",
                     ):
                         self._start_launcher_update()

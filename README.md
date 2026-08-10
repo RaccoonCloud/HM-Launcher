@@ -1,6 +1,6 @@
 # HarbourMaster
 
-**Version 1.5.0**
+**Version 1.8.0**
 
 Windows launcher for [Harbour Masters](https://github.com/HarbourMasters) PC ports.
 
@@ -15,9 +15,11 @@ Game builds come from the HarbourMasters GitHub releases. You must use your own 
 - Lists Harbour Masters ports in one place (SoH, 2Ship, Starship, SpaghettiKart, Ghostship, Lighthouse, Archipelago SoH)
 - Downloads / updates the latest stable Win64 release from GitHub
 - Launches installed games, or lets you point at folders you already have
-- **Notifies you** when installed games have a newer build (banner + Update button on the card)
+- Shows **installed** and **latest** version on each game card
+- **Update** button per game when a newer build is available
+- **What's new** — view that release’s changelog from GitHub
 - Optional auto-update when a new game release is published
-- **Launcher self-update** — notifies when a new HarbourMaster version is on GitHub Releases and can install it from inside the app
+- Footer shows **HarbourMaster version** plus **Update Launcher**
 - Archipelago SoH: download `oot_soh.apworld` into your Archipelago custom worlds folder
 - Quick link to the Harbour Masters Discord
 
@@ -62,7 +64,7 @@ That’s it — the launcher is ready.
 
 ### Install a game
 1. Find the game/project
-2. Click **Install / Update**
+2. Click **Install**
 3. Wait for the download to finish  
    Games install under your library root, each in its own subfolder
 
@@ -70,6 +72,11 @@ That’s it — the launcher is ready.
 1. Click **Launch**
 2. On first run, the port itself will ask for your legal ROM / game files  
    HarbourMaster does not ship ROMs - ALWAYS OWN YOUR OWN LEGAL COPY OF THE GAME! DO NOT ASK FOR ROMS OR DISTRIBUTE ROMS!
+
+### Update a game
+1. When a newer build exists, the card shows a yellow **Update** button (and the installed vs latest versions)
+2. Click **Update**, or use the yellow banner / auto-update
+3. Click **What's new** to read the GitHub release notes for that build
 
 ### Already installed somewhere else?
 1. Click **Browse**
@@ -82,6 +89,7 @@ That’s it — the launcher is ready.
 ### Check for updates
 - Click **Refresh** in the top bar  
 - Or leave auto-update enabled (checks on a delay after startup, on Refresh, and about once an hour while open)
+- Footer **Update Launcher** checks/installs a newer HarbourMaster build
 
 ### Archipelago SoH apworld
 1. Set your Archipelago custom worlds folder in **Settings**
@@ -144,7 +152,7 @@ Please support the Harbour Masters projects and use only ROMs / dumps you person
 
 ## Future plans
 
-**v1.5.0** adds game-update notifications and launcher self-update. More improvements are still planned, including:
+**v1.8.0** adds clearer per-game Update / What's new, installed version on each card, and Update Launcher in the footer. More improvements are still planned, including:
 
 - Further UI polish and quality-of-life tweaks
 - Extra helper actions around installs and Archipelago workflows

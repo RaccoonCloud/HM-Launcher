@@ -30,6 +30,7 @@ class LatestRelease:
     windows_zip: ReleaseAsset | None
     extras: dict[str, ReleaseAsset]
     fetched_at: float
+    body: str = ""
 
 
 @dataclass
@@ -39,6 +40,7 @@ class LauncherRelease:
     html_url: str
     asset: ReleaseAsset | None
     fetched_at: float
+    body: str = ""
 
 
 def _cache_path(data_dir: Path, game_id: str) -> Path:
@@ -60,6 +62,7 @@ def _parse_cache(raw: dict[str, Any]) -> LatestRelease:
         windows_zip=windows_zip,
         extras=extras,
         fetched_at=float(raw.get("fetched_at", 0)),
+        body=str(raw.get("body", "") or ""),
     )
 
 
@@ -95,6 +98,7 @@ def _save_cache(path: Path, release: LatestRelease) -> None:
         "windows_zip": asdict(release.windows_zip) if release.windows_zip else None,
         "extras": {k: asdict(v) for k, v in release.extras.items()},
         "fetched_at": release.fetched_at,
+        "body": release.body,
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
@@ -161,6 +165,7 @@ def fetch_latest_release(
         windows_zip=windows_zip,
         extras=extras,
         fetched_at=time.time(),
+        body=str(data.get("body") or ""),
     )
     _save_cache(cache_file, release)
     return release
@@ -216,6 +221,7 @@ def fetch_launcher_latest(
                     html_url=str(raw.get("html_url", "")),
                     asset=ReleaseAsset(**asset_raw) if asset_raw else None,
                     fetched_at=fetched,
+                    body=str(raw.get("body", "") or ""),
                 )
         except (OSError, json.JSONDecodeError, TypeError):
             pass
@@ -236,6 +242,7 @@ def fetch_launcher_latest(
         html_url=str(data.get("html_url") or ""),
         asset=pick_launcher_asset(list(data.get("assets") or [])),
         fetched_at=time.time(),
+        body=str(data.get("body") or ""),
     )
     cache_file.parent.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(
@@ -246,6 +253,7 @@ def fetch_launcher_latest(
                 "html_url": release.html_url,
                 "asset": asdict(release.asset) if release.asset else None,
                 "fetched_at": release.fetched_at,
+                "body": release.body,
             },
             indent=2,
         ),
