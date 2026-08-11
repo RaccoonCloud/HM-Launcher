@@ -1,1 +1,2 @@
-"""HarbourMaster application package."""
+"""ShipYard application package."""
+

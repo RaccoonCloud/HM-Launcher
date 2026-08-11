@@ -3,7 +3,7 @@ cd /d "%~dp0"
 python -m PyInstaller --noconfirm --clean ^
   --windowed ^
   --onefile ^
-  --name HarbourMaster ^
+  --name ShipYard ^
   --icon "assets\hm_icon_v3.ico" ^
   --collect-all customtkinter ^
   --add-data "assets\hm_icon_v3.ico;assets" ^
@@ -23,16 +23,16 @@ if errorlevel 1 (
 
 echo.
 echo Copying EXE to project root...
-copy /Y "dist\HarbourMaster.exe" "%~dp0HarbourMaster.exe"
-copy /Y "dist\HarbourMaster.exe" "%USERPROFILE%\Desktop\HarbourMaster.exe"
-copy /Y "assets\hm_icon_v3.ico" "%USERPROFILE%\Desktop\HarbourMaster.ico"
+copy /Y "dist\ShipYard.exe" "%~dp0ShipYard.exe"
+copy /Y "dist\ShipYard.exe" "%USERPROFILE%\Desktop\ShipYard.exe"
+copy /Y "assets\hm_icon_v3.ico" "%USERPROFILE%\Desktop\ShipYard.ico"
 
 echo.
 echo Built:
-echo   %~dp0HarbourMaster.exe
-echo   dist\HarbourMaster.exe
-echo   Desktop\HarbourMaster.exe
+echo   %~dp0ShipYard.exe
+echo   dist\ShipYard.exe
+echo   Desktop\ShipYard.exe
 echo.
-echo Zip HarbourMaster.exe (+ README) as HMLauncher.zip to share with users.
+echo Zip ShipYard.exe (+ README) as ShipYard-vX.Y.Z.zip to share with users.
 pause
 

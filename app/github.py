@@ -12,7 +12,7 @@ from app.catalog import GameDef, score_windows_asset
 from app.version import APP_VERSION, LAUNCHER_REPO
 
 CACHE_TTL_SECONDS = 3600
-USER_AGENT = f"HarbourMaster/{APP_VERSION}"
+USER_AGENT = f"ShipYard/{APP_VERSION}"
 
 
 @dataclass
@@ -172,7 +172,7 @@ def fetch_latest_release(
 
 
 def pick_launcher_asset(assets: list[dict[str, Any]]) -> ReleaseAsset | None:
-    """Prefer HMLauncher zip, then any zip, then HarbourMaster.exe."""
+    """Prefer ShipYard zip, then legacy HMLauncher/HarbourMaster names, then any zip/exe."""
     scored: list[tuple[int, ReleaseAsset]] = []
     for asset in assets:
         name = str(asset.get("name", ""))
@@ -181,12 +181,16 @@ def pick_launcher_asset(assets: list[dict[str, Any]]) -> ReleaseAsset | None:
             continue
         lower = name.lower()
         score = -1
-        if lower.endswith(".zip") and "hmlauncher" in lower:
+        if lower.endswith(".zip") and "shipyard" in lower:
+            score = 400
+        elif lower.endswith(".zip") and "hmlauncher" in lower:
             score = 300
         elif lower.endswith(".zip") and "harbourmaster" in lower:
             score = 200
         elif lower.endswith(".zip"):
             score = 100
+        elif lower == "shipyard.exe":
+            score = 80
         elif lower == "harbourmaster.exe":
             score = 50
         if score < 0:

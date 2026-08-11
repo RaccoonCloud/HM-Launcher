@@ -1,10 +1,12 @@
-# HarbourMaster
+# ShipYard
 
-**Version 1.8.0**
+**Version 1.9.0**
 
 Windows launcher for [Harbour Masters](https://github.com/HarbourMasters) PC ports.
 
 **Created by RaccoonCloud** for the Harbour Masters team and everyone who wants an easy way to install, update, and launch the ports.
+
+(Formerly called HarbourMaster — renamed to avoid confusion with Harbour Masters.)
 
 Game builds come from the HarbourMasters GitHub releases. You must use your own legally obtained ROMs / games. Do not share, ask for, or distribute ROMs.
 
@@ -19,7 +21,7 @@ Game builds come from the HarbourMasters GitHub releases. You must use your own 
 - **Update** button per game when a newer build is available
 - **What's new** — view that release’s changelog from GitHub
 - Optional auto-update when a new game release is published
-- Footer shows **HarbourMaster version** plus **Update Launcher**
+- Footer shows **ShipYard version** plus **Update Launcher**
 - Archipelago SoH: download `oot_soh.apworld` into your Archipelago custom worlds folder
 - Quick link to the Harbour Masters Discord
 
@@ -27,15 +29,15 @@ Game builds come from the HarbourMasters GitHub releases. You must use your own 
 
 ## Install (new users — ready-made EXE)
 
-This GitHub repo is **source code**. The runnable Windows app is **`HMLauncher.zip`**, which contains `HarbourMaster.exe`.
+This GitHub repo is **source code**. The runnable Windows app is **`ShipYard.zip`**, which contains `ShipYard.exe`.
 
 Get the zip from whoever shared it with you (Discord / Drive / a GitHub **Release** if one is published). Then:
 
-1. Download `HMLauncher.zip`
+1. Download `ShipYard-v1.9.0.zip` (or the latest release zip)
 2. Extract it somewhere easy, for example:
-   - `C:\Games\HarbourMaster\`
+   - `C:\Games\ShipYard\`
    - or your Desktop
-3. Double-click **HarbourMaster.exe**
+3. Double-click **ShipYard.exe**
 4. If Windows shows **Windows protected your PC**:
    - Click **More info**
    - Click **Run anyway**  
@@ -52,8 +54,8 @@ That’s it — the launcher is ready.
 
 1. Open **Settings**
 2. Set **Library root** to a folder you own  
-   - Default is `D:\HarbourMaster`  
-   - Change this if you don’t have a D: drive (e.g. `C:\Games\HarbourMasterLibrary`)
+   - Default is `D:\ShipYard`  
+   - Change this if you don’t have a D: drive (e.g. `C:\Games\ShipYardLibrary`)
 3. (Optional) Set **Archipelago custom worlds** if you use Archipelago SoH
 4. Leave **Auto-update** on if you want new builds downloaded for you, or turn it off for manual-only updates
 5. Click **Save**
@@ -71,7 +73,7 @@ That’s it — the launcher is ready.
 ### Launch a game
 1. Click **Launch**
 2. On first run, the port itself will ask for your legal ROM / game files  
-   HarbourMaster does not ship ROMs - ALWAYS OWN YOUR OWN LEGAL COPY OF THE GAME! DO NOT ASK FOR ROMS OR DISTRIBUTE ROMS!
+   ShipYard does not ship ROMs - ALWAYS OWN YOUR OWN LEGAL COPY OF THE GAME! DO NOT ASK FOR ROMS OR DISTRIBUTE ROMS!
 
 ### Update a game
 1. When a newer build exists, the card shows a yellow **Update** button (and the installed vs latest versions)
@@ -89,7 +91,7 @@ That’s it — the launcher is ready.
 ### Check for updates
 - Click **Refresh** in the top bar  
 - Or leave auto-update enabled (checks on a delay after startup, on Refresh, and about once an hour while open)
-- Footer **Update Launcher** checks/installs a newer HarbourMaster build
+- Footer **Update Launcher** checks/installs a newer ShipYard build
 
 ### Archipelago SoH apworld
 1. Set your Archipelago custom worlds folder in **Settings**
@@ -106,11 +108,11 @@ That’s it — the launcher is ready.
 
 | Location | Purpose |
 |---|---|
-| Next to `HarbourMaster.exe` → `data\` | Launcher settings, install paths, release cache |
+| Next to `ShipYard.exe` → `data\` | Launcher settings, install paths, release cache |
 | Your **Library root** | Downloaded game builds |
 | Archipelago custom worlds folder | `oot_soh.apworld` (if you use that feature) |
 
-You can move the whole HarbourMaster folder later; keep `HarbourMaster.exe` and its `data\` folder together.
+You can move the whole ShipYard folder later; keep `ShipYard.exe` and its `data\` folder together.
 
 ---
 
@@ -119,14 +121,14 @@ You can move the whole HarbourMaster folder later; keep `HarbourMaster.exe` and 
 If you only have this repo (no zip), build the EXE yourself:
 
 ```powershell
-cd path\to\harbourmaster-launcher
+cd path\to\shipyard-launcher
 pip install -r requirements.txt
 .\build_exe.bat
 ```
 
-That creates **`HarbourMaster.exe` in the project root** (and also under `dist\` / Desktop while building).
+That creates **`ShipYard.exe` in the project root** (and also under `dist\` / Desktop while building).
 
-Share with users by zipping that EXE + this README as `HMLauncher.zip`.
+Share with users by zipping that EXE + this README as `ShipYard-vX.Y.Z.zip`.
 
 Run without building an EXE:
 
@@ -152,7 +154,7 @@ Please support the Harbour Masters projects and use only ROMs / dumps you person
 
 ## Future plans
 
-**v1.8.0** adds clearer per-game Update / What's new, installed version on each card, and Update Launcher in the footer. More improvements are still planned, including:
+**v1.9.0** renames the launcher to ShipYard (same app, clearer name). More improvements are still planned, including:
 
 - Further UI polish and quality-of-life tweaks
 - Extra helper actions around installs and Archipelago workflows
@@ -162,7 +164,8 @@ Feedback from the team and community will help decide what comes next.
 
 ### Note on launcher self-update
 
-Self-update reads the latest release from `RaccoonCloud/HM-Launcher`. For other PCs to download that update automatically.
+Self-update reads the latest release from `RaccoonCloud/HM-Launcher`. For other PCs to download that update automatically, the release assets need to be downloadable without a private login (make the repo public, or publish releases in a way that allows anonymous download).
+
 Special thank you for your friendship, support, and memories over the years!
 
 - Caladius
@@ -183,3 +186,4 @@ Special thank you for your friendship, support, and memories over the years!
 - AGreenSpoon
 - Mellar
 - PapaChiefo
+

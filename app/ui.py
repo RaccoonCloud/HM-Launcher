@@ -258,7 +258,7 @@ class App(ctk.CTk):
             self._anim_idx = 0
             self._animate_splash()
             if hasattr(self, "_splash_status"):
-                self._splash_status.configure(text="Starting HarbourMaster…")
+                self._splash_status.configure(text="Starting ShipYard…")
 
     def _show_splash(self) -> None:
         """Animated Harbour Masters mark while the app boots."""
@@ -680,7 +680,7 @@ class App(ctk.CTk):
         launcher_var = ctk.BooleanVar(value=bool(self.settings.get("check_launcher_updates", True)))
         ctk.CTkCheckBox(
             win,
-            text="Check for HarbourMaster launcher updates on startup",
+            text="Check for ShipYard launcher updates on startup",
             variable=launcher_var,
         ).pack(anchor="w", padx=16, pady=(4, 4))
 
@@ -714,7 +714,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(
             win,
-            text=f"HarbourMaster v{APP_VERSION}\nCreated by RaccoonCloud for the Harbour Masters team and community",
+            text=f"ShipYard v{APP_VERSION}\nCreated by RaccoonCloud for the Harbour Masters team and community",
             text_color=MUTED,
             font=ctk.CTkFont(size=12),
             justify="center",
@@ -848,7 +848,7 @@ class App(ctk.CTk):
                 state="normal",
             )
         else:
-            self._launcher_version_var.set(f"HarbourMaster v{APP_VERSION}")
+            self._launcher_version_var.set(f"ShipYard v{APP_VERSION}")
             self._launcher_update_btn.configure(
                 text="Update Launcher",
                 fg_color="#3a4555",
@@ -865,13 +865,13 @@ class App(ctk.CTk):
                 preview = body if len(body) < 1200 else body[:1200] + "\n\n…"
                 if messagebox.askyesno(
                     APP_NAME,
-                    f"HarbourMaster {release.tag}\n\n{preview}\n\nUpdate launcher now?",
+                    f"ShipYard {release.tag}\n\n{preview}\n\nUpdate launcher now?",
                 ):
                     self._start_launcher_update()
                 return
             if messagebox.askyesno(
                 APP_NAME,
-                f"Update HarbourMaster from v{APP_VERSION} to {release.tag}?",
+                f"Update ShipYard from v{APP_VERSION} to {release.tag}?",
             ):
                 self._start_launcher_update()
             return
@@ -974,12 +974,12 @@ class App(ctk.CTk):
                     if force:
                         messagebox.showinfo(
                             APP_NAME,
-                            f"HarbourMaster is up to date (v{APP_VERSION}).",
+                            f"ShipYard is up to date (v{APP_VERSION}).",
                         )
                         self._set_status(f"Launcher up to date (v{APP_VERSION}).")
                     return
                 self._show_notify(
-                    f"HarbourMaster update available: {release.tag} (you have v{APP_VERSION})",
+                    f"ShipYard update available: {release.tag} (you have v{APP_VERSION})",
                     action="launcher",
                     button="Update launcher",
                 )
@@ -990,7 +990,7 @@ class App(ctk.CTk):
                     extra = f"\n\n{body[:800]}{'…' if len(body) > 800 else ''}" if body else ""
                     if messagebox.askyesno(
                         APP_NAME,
-                        f"A new HarbourMaster is available: {release.tag}\n\n"
+                        f"A new ShipYard is available: {release.tag}\n\n"
                         f"You are on v{APP_VERSION}.{extra}\n\n"
                         "Update now from the launcher?",
                     ):
@@ -1011,7 +1011,7 @@ class App(ctk.CTk):
         if not getattr(sys, "frozen", False):
             messagebox.showinfo(
                 APP_NAME,
-                "Self-update runs from the built HarbourMaster.exe.\n"
+                "Self-update runs from the built ShipYard.exe.\n"
                 f"Open the release page instead:\n{release.html_url}",
             )
             if release.html_url:
@@ -1020,7 +1020,7 @@ class App(ctk.CTk):
         if self._busy:
             return
         self._busy = True
-        self._set_status(f"Updating HarbourMaster to {release.tag}…")
+        self._set_status(f"Updating ShipYard to {release.tag}…")
 
         def work() -> None:
             err: Exception | None = None
@@ -1086,7 +1086,7 @@ class App(ctk.CTk):
         entry = self._install_record(game.id)
         path = Path(str(entry.get("install_dir", "") or entry.get("exe_path", "")))
         if not path.exists():
-            lib = Path(self.library_var.get().strip() or r"D:\HarbourMaster") / game.id
+            lib = Path(self.library_var.get().strip() or r"D:\ShipYard") / game.id
             path = lib
         try:
             if not path.exists():
@@ -1131,7 +1131,7 @@ class App(ctk.CTk):
         label = "Auto-updating" if auto else "Installing"
         self._set_status(f"{label} {game.name}…")
 
-        library_root = Path(self.library_var.get().strip() or r"D:\HarbourMaster")
+        library_root = Path(self.library_var.get().strip() or r"D:\ShipYard")
         self.settings["library_root"] = str(library_root)
         settings.save_settings(self.settings)
 

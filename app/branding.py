@@ -36,7 +36,7 @@ def window_ico_path() -> Path | None:
     if not src:
         return None
     if getattr(sys, "frozen", False):
-        dest = Path(sys.executable).resolve().parent / "HarbourMaster.ico"
+        dest = Path(sys.executable).resolve().parent / "ShipYard.ico"
         try:
             # Always refresh so a rebuilt teal icon replaces an older red one
             shutil.copy2(src, dest)

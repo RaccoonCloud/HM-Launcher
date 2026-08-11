@@ -27,7 +27,7 @@ def ensure_dirs() -> None:
 
 def default_settings() -> dict[str, Any]:
     return {
-        "library_root": r"D:\HarbourMaster",
+        "library_root": r"D:\ShipYard",
         "archipelago_custom_worlds": "",
         "window_geometry": "980x720",
         # When True, installed games download the newest stable GitHub release on launch
