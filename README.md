@@ -164,7 +164,7 @@ Feedback from the team and community will help decide what comes next.
 
 ### Note on launcher self-update
 
-Self-update reads the latest release from `RaccoonCloud/HM-Launcher`. For other PCs to download that update automatically, the release assets need to be downloadable without a private login (make the repo public, or publish releases in a way that allows anonymous download).
+Self-update reads the latest release from `RaccoonCloud/ShipYard`. For other PCs to download that update automatically, the release assets need to be downloadable without a private login (make the repo public, or publish releases in a way that allows anonymous download).
 
 Special thank you for your friendship, support, and memories over the years!
 
