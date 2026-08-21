@@ -1,20 +1,24 @@
-from __future__ import annotations
+# the window. CustomTkinter because I wanted dark mode , as who doesnt like dark mode, maybe do a choice of light and dark mode in future....maybe
+# downloads run on a background thread so the UI doesnt freeze and lag like it was doing and again ran that error through A free AI as im not paying for that and too scared to bother the devs so upfront no lies here.
+# this code is massive yeah happy for you cool devs who read this to help me out and shrink some stuff maybe clean it, and yeah FREE AI helped me with breaks and line finds and apparently better code lines ALSO BRACKETS I KEPT FORGETTING THEM AND SYNAX LINE ERRORs PYTHON AM I RIGHT YAH ITS PYTHON WITH CUSTOM TKINTER HELPS FOR THE FANCYNESS WITH VALUES AND SIZING
+
+
+
 
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from typing import Any
 
 import customtkinter as ctk
 import tkinter as tk
 
-from app import branding, catalog, github, icons, install, launch, settings, self_update
-from app.catalog import GameDef
-from app.version import APP_NAME, APP_VERSION, is_newer
+from app import art, config, dl, games, gh
+from app.config import APP_NAME, APP_VERSION, is_newer
 
-# Nautical-adjacent dark theme
+# Dark theme. teal + yellow it was red but red lights spell danger so Update actually stands out
 ACCENT = "#1a8a8a"
 ACCENT_HOVER = "#147070"
 WARN = "#c9a227"
@@ -25,30 +29,20 @@ CARD = "#222b36"
 TEXT = "#e6edf3"
 MUTED = "#8b9aab"
 
-# Re-check GitHub while the launcher stays open (matches release cache TTL)
-PERIODIC_CHECK_MS = 60 * 60 * 1000
+# check github about once an hour while the window is open ( this could be longer if user wants maybe make that a setting as I dont think it updates every hour, devs know best NO DEV ROLE FOR THIS GUY)
+
+HOUR_MS = 60 * 60 * 1000
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
+ # DO PEOPLE WANT CUSTOM THEMES AND COLOURS!! TELL ME DEVS IF YOU ARE CHECKING THISCODE!!
 
-
-class GameCard(ctk.CTkFrame):
-    def __init__(
-        self,
-        master: Any,
-        game: GameDef,
-        *,
-        on_launch: Any,
-        on_install: Any,
-        on_browse: Any,
-        on_folder: Any,
-        on_changelog: Any | None = None,
-        on_apworld: Any | None = None,
-        icon_image: ctk.CTkImage | None = None,
-    ) -> None:
+class PortRow(ctk.CTkFrame):
+    # one game card. buttons come and go depending on install / update state.
+    def __init__(self, master, game, on_launch, on_install, on_browse, on_folder, on_changelog=None, on_apworld=None, icon_image=None):
         super().__init__(master, fg_color=CARD, corner_radius=10)
         self.game = game
-        self._icon_ref: ctk.CTkImage | None = icon_image
+        self._icon_ref = icon_image
         self.grid_columnconfigure(1, weight=1)
 
         icon_wrap = ctk.CTkFrame(self, fg_color="transparent", width=84, height=84)
@@ -61,195 +55,134 @@ class GameCard(ctk.CTkFrame):
         else:
             self._icon_label.configure(text="…", text_color=MUTED, font=ctk.CTkFont(size=18, weight="bold"))
 
-        title = ctk.CTkLabel(
-            self,
-            text=game.name,
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color=TEXT,
-            anchor="w",
-        )
+        title = ctk.CTkLabel(self, text=game.name, font=ctk.CTkFont(size=18, weight="bold"), text_color=TEXT, anchor="w")
         title.grid(row=0, column=1, sticky="ew", padx=(4, 14), pady=(12, 0))
 
-        self.blurb = ctk.CTkLabel(
-            self,
-            text=game.blurb,
-            font=ctk.CTkFont(size=12),
-            text_color=MUTED,
-            anchor="w",
-        )
+        self.blurb = ctk.CTkLabel(self, text=game.blurb, font=ctk.CTkFont(size=12), text_color=MUTED, anchor="w")
         self.blurb.grid(row=1, column=1, sticky="ew", padx=(4, 14), pady=(2, 0))
 
         self.version_var = ctk.StringVar(value="Installed: —")
-        self.version = ctk.CTkLabel(
-            self,
-            textvariable=self.version_var,
-            font=ctk.CTkFont(size=12),
-            text_color=MUTED,
-            anchor="w",
-        )
+        self.version = ctk.CTkLabel(self, textvariable=self.version_var, font=ctk.CTkFont(size=12), text_color=MUTED, anchor="w")
         self.version.grid(row=2, column=1, sticky="ew", padx=(4, 14), pady=(4, 0))
 
         self.status_var = ctk.StringVar(value="Checking…")
-        self.status = ctk.CTkLabel(
-            self,
-            textvariable=self.status_var,
-            font=ctk.CTkFont(size=12),
-            text_color=TEXT,
-            anchor="w",
-        )
+        self.status = ctk.CTkLabel(self, textvariable=self.status_var, font=ctk.CTkFont(size=12), text_color=TEXT, anchor="w")
         self.status.grid(row=3, column=1, sticky="ew", padx=(4, 14), pady=(4, 0))
 
         btns = ctk.CTkFrame(self, fg_color="transparent")
         btns.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=(10, 12))
 
-        self.launch_btn = ctk.CTkButton(
-            btns,
-            text="Launch",
-            width=90,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            command=lambda: on_launch(game),
-        )
+        self.launch_btn = ctk.CTkButton(btns, text="Launch", width=90, fg_color=ACCENT, hover_color=ACCENT_HOVER, command=lambda: on_launch(game))
         self.launch_btn.pack(side="left", padx=4)
 
-        self.install_btn = ctk.CTkButton(
-            btns,
-            text="Install",
-            width=100,
-            fg_color="#1f6aa5",
-            hover_color="#144870",
-            command=lambda: on_install(game),
-        )
+        self.install_btn = ctk.CTkButton(btns, text="Install", width=100, fg_color="#1f6aa5", hover_color="#144870", command=lambda: on_install(game))
         self.install_btn.pack(side="left", padx=4)
 
-        self.update_btn = ctk.CTkButton(
-            btns,
-            text="Update",
-            width=100,
-            fg_color=WARN,
-            hover_color=WARN_HOVER,
-            text_color="#1a1a1a",
-            command=lambda: on_install(game),
-        )
-        # Shown only when an update is available
-        self._update_packed = False
+        self.update_btn = ctk.CTkButton(btns, text="Update", width=100, fg_color=WARN, hover_color=WARN_HOVER, text_color="#1a1a1a", command=lambda: on_install(game))
+        # I only pack Update when that game actually needs it
+        self._update_shown = False
 
-        self.changelog_btn = ctk.CTkButton(
-            btns,
-            text="What's new",
-            width=100,
-            fg_color="#3a4555",
-            hover_color="#2f3947",
-            command=lambda: on_changelog(game) if on_changelog else None,
-        )
-        self._changelog_packed = False
+        self.changelog_btn = ctk.CTkButton(btns, text="What's new", width=100, fg_color="#3a4555", hover_color="#2f3947", command=lambda: on_changelog(game) if on_changelog else None)
+        self._notes_shown = False
 
-        ctk.CTkButton(btns, text="Browse", width=80, command=lambda: on_browse(game)).pack(
-            side="left", padx=4
-        )
-        ctk.CTkButton(btns, text="Folder", width=80, command=lambda: on_folder(game)).pack(
-            side="left", padx=4
-        )
+        ctk.CTkButton(btns, text="Browse", width=80, command=lambda: on_browse(game)).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Folder", width=80, command=lambda: on_folder(game)).pack(side="left", padx=4)
 
         if game.id == "archipelago_soh" and on_apworld:
-            self.apworld_btn = ctk.CTkButton(
-                btns,
-                text="Get apworld",
-                width=110,
-                command=lambda: on_apworld(game),
-            )
+            self.apworld_btn = ctk.CTkButton(btns, text="Get apworld", width=110, command=lambda: on_apworld(game))
             self.apworld_btn.pack(side="left", padx=4)
-
-    def set_icon(self, image: ctk.CTkImage) -> None:
+ #i WANT LIE ARCHI STUFF IS LIKE YYYEAAAHHH IMMA GET SOME HELP PLEASE OR EXPECT BREAKS AND FREE AI HELP!!
+    def set_icon(self, image):
         self._icon_ref = image
         self._icon_label.configure(image=image, text="")
 
-    def set_versions(self, *, installed: str, latest: str) -> None:
-        inst = installed or "—"
-        lat = latest or "—"
-        self.version_var.set(f"Installed: {inst}   ·   Latest: {lat}")
+    def set_versions(self, installed, latest):
+        if not installed:
+            installed = "—"
+        if not latest:
+            latest = "—"
+        self.version_var.set("Installed: %s   ·   Latest: %s" % (installed, latest))
 
-    def set_update_available(self, available: bool, latest_tag: str = "") -> None:
+    def set_update_available(self, available, latest_tag=""):
         if available:
-            label = f"Update to {latest_tag}" if latest_tag else "Update"
-            self.update_btn.configure(text=label)
-            if not self._update_packed:
+            if latest_tag:
+                self.update_btn.configure(text="Update to " + latest_tag)
+            else:
+                self.update_btn.configure(text="Update")
+            if not self._update_shown:
                 self.update_btn.pack(side="left", padx=4, after=self.install_btn)
-                self._update_packed = True
+                self._update_shown = True
         else:
-            if self._update_packed:
+            if self._update_shown:
                 self.update_btn.pack_forget()
-                self._update_packed = False
-        # Primary download action stays "Install" (fresh install or overwrite).
+                self._update_shown = False
         self.install_btn.configure(text="Install")
 
-    def set_installed(self, _installed: bool) -> None:
-        # Always "Install" — even if a copy is already on disk.
-        # Auto-detected ports used to show "Reinstall" and confuse people.
+    def remember_installed(self, installed):
+        # keep saying Install. Reinstall made it look like I already
+        # shoved a copy in when I just found their old folder
         self.install_btn.configure(text="Install")
 
-    def set_changelog_available(self, available: bool) -> None:
-        if available and not self._changelog_packed:
-            after = self.update_btn if self._update_packed else self.install_btn
+    def set_changelog_available(self, available):
+        if available and not self._notes_shown:
+            after = self.update_btn if self._update_shown else self.install_btn
             self.changelog_btn.pack(side="left", padx=4, after=after)
-            self._changelog_packed = True
-        elif not available and self._changelog_packed:
+            self._notes_shown = True
+        elif not available and self._notes_shown:
             self.changelog_btn.pack_forget()
-            self._changelog_packed = False
+            self._notes_shown = False
 
-    def set_busy(self, busy: bool) -> None:
-        state = "disabled" if busy else "normal"
-        self.launch_btn.configure(state=state)
-        self.install_btn.configure(state=state)
-        self.update_btn.configure(state=state)
-        self.changelog_btn.configure(state=state)
+    def set_busy(self, busy):
+        st = "disabled" if busy else "normal"
+        self.launch_btn.configure(state=st)
+        self.install_btn.configure(state=st)
+        self.update_btn.configure(state=st)
+        self.changelog_btn.configure(state=st)
 
 
 class App(ctk.CTk):
-    SPLASH_MIN_MS = 2500  # show animation, then get out of the way
+    # splash for a couple seconds so icons can warm up, then the real UI the reason was the crashing at the start and slow load ups this code was lookoed over by AI but cleaned up by me
+    SPLASH_MIN_MS = 2500
 
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__()
-        self.title(f"{APP_NAME} {APP_VERSION}")
+        self.title(APP_NAME + " " + APP_VERSION)
         self.configure(fg_color=BG)
-        self.settings = settings.load_settings()
-        self.installs = settings.load_installs()
+        self.settings = config.load_settings()
+        self.installs = config.load_installs()
         self.geometry(self.settings.get("window_geometry", "980x720"))
         self.minsize(860, 600)
 
-        self._releases: dict[str, github.LatestRelease] = {}
+        self._releases = {}
         self._busy = False
-        self._cards: dict[str, GameCard] = {}
-        self._update_queue: list[GameDef] = []
+        self._cards = {}
+        self._update_queue = []
         self._auto_updating = False
-        self._splash_photos: list = []
-        self._header_photos: list = []
-        self._game_ctk_icons: dict[str, ctk.CTkImage] = {}
+        self._splash_photos = []
+        self._header_photos = []
+        self._game_ctk_icons = {}
         self._anim_idx = 0
-        self._splash_job: str | None = None
-        self._header_job: str | None = None
-        self._header_icon: ctk.CTkImage | None = None
+        self._splash_job = None
+        self._header_job = None
         self._splash_started_at = 0.0
         self._boot_ready = False
         self._main_ready = False
-        self._launcher_release: github.LauncherRelease | None = None
+        self._launcher_release = None
         self._game_update_prompted = False
         self._launcher_prompted = False
 
-        branding.apply_window_icon(self)
-        settings.ensure_dirs()
+        art.apply_window_icon(self)
+        config.ensure_dirs()
         self._show_splash()
         self.after(1, self._start_splash_animation)
         self.after(1, self._boot_async)
 
-    def _start_splash_animation(self) -> None:
-        import time
-
-        self._splash_photos = branding.load_prebaked_photos(branding.ANIM_SPLASH)
-        # Fewer header frames = less CPU while using the launcher
-        self._header_photos = branding.load_prebaked_photos(branding.ANIM_HEADER, max_frames=18)
+    def _start_splash_animation(self):
+        self._splash_photos = art.load_prebaked_photos(art.ANIM_SPLASH)
+        # header gif is huge, 18 frames is enough and keeps scrolling smooth
+        self._header_photos = art.load_prebaked_photos(art.ANIM_HEADER, max_frames=18)
         if not self._splash_photos:
-            static = branding.load_static_photo((256, 256))
+            static = art.load_static_photo((256, 256))
             if static:
                 self._splash_photos = [static]
         if self._splash_photos:
@@ -260,8 +193,7 @@ class App(ctk.CTk):
             if hasattr(self, "_splash_status"):
                 self._splash_status.configure(text="Starting ShipYard…")
 
-    def _show_splash(self) -> None:
-        """Animated Harbour Masters mark while the app boots."""
+    def _show_splash(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         self._splash = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
@@ -274,47 +206,41 @@ class App(ctk.CTk):
 
         self._splash_label = tk.Label(center, text="", bg=BG, bd=0, highlightthickness=0)
         self._splash_label.pack(padx=24, pady=(24, 8))
-        ctk.CTkLabel(
-            center,
-            text=APP_NAME,
-            font=ctk.CTkFont(size=22, weight="bold"),
-            text_color=TEXT,
-        ).pack(pady=(0, 4))
+        ctk.CTkLabel(center, text=APP_NAME, font=ctk.CTkFont(size=22, weight="bold"), text_color=TEXT).pack(pady=(0, 4))
         self._splash_status = ctk.CTkLabel(center, text="Loading…", text_color=MUTED)
         self._splash_status.pack(pady=(0, 24))
 
-        photo = branding.load_static_photo((256, 256))
+        photo = art.load_static_photo((256, 256))
         if photo:
             self._splash_photos = [photo]
             self._splash_label.configure(image=photo)
 
-    def _animate_splash(self) -> None:
+    def _animate_splash(self):
         if not self._splash_photos:
             return
-        frame = self._splash_photos[self._anim_idx % len(self._splash_photos)]
         try:
-            self._splash_label.configure(image=frame)
-        except Exception:  # noqa: BLE001
+            self._splash_label.configure(image=self._splash_photos[self._anim_idx % len(self._splash_photos)])
+        except Exception:
             return
         self._anim_idx += 1
         self._splash_job = self.after(50, self._animate_splash)
 
-    def _stop_splash(self) -> None:
+    def _stop_splash(self):
         if self._splash_job is not None:
             try:
                 self.after_cancel(self._splash_job)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             self._splash_job = None
         if hasattr(self, "_splash") and self._splash.winfo_exists():
             self._splash.destroy()
         self._splash_photos = []
 
-    def _boot_async(self) -> None:
-        def work() -> None:
+    def _boot_async(self):
+        # splash thread: warm icons + link any ports I already had on disk
+        def work():
             try:
-                # Warm icon cache during splash so UI build stays snappy
-                icons.preload_all(size=(72, 72))
+                art.warm_icons(size=(72, 72))
                 self._seed_hint_installs()
             finally:
                 self.after(0, self._on_boot_work_done)
@@ -323,62 +249,58 @@ class App(ctk.CTk):
             self._splash_status.configure(text="Preparing games…")
         threading.Thread(target=work, daemon=True).start()
 
-    def _on_boot_work_done(self) -> None:
+    def _on_boot_work_done(self):
         self._boot_ready = True
         if hasattr(self, "_splash_status"):
             self._splash_status.configure(text="Ready…")
         self._maybe_finish_boot()
 
-    def _maybe_finish_boot(self) -> None:
-        import time
-
+    def _maybe_finish_boot(self):
         if not self._boot_ready:
             return
         started = self._splash_started_at or time.monotonic()
-        elapsed_ms = (time.monotonic() - started) * 1000
-        remaining_ms = int(max(0, self.SPLASH_MIN_MS - elapsed_ms))
-        if remaining_ms > 0:
-            self.after(remaining_ms, self._finish_boot)
+        left = int(max(0, self.SPLASH_MIN_MS - (time.monotonic() - started) * 1000))
+        if left > 0:
+            self.after(left, self._finish_boot)
         else:
             self._finish_boot()
 
-    def _finish_boot(self) -> None:
+    def _finish_boot(self):
         if self._main_ready:
             return
         self._main_ready = True
         self._stop_splash()
-        # Drop any leftover splash children / row weight before building the shell
         for child in list(self.winfo_children()):
             try:
                 child.destroy()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         self._apply_disk_caches()
         self._build()
-        branding.apply_window_icon(self)
-        self.after(100, lambda: branding.apply_window_icon(self))
+        art.apply_window_icon(self)
+        self.after(100, lambda: art.apply_window_icon(self))
         self._start_header_animation()
-        # Attach game icons one-per-tick so the shell stays clickable immediately
         self.after(20, lambda: self._attach_game_icons(0))
-        # GitHub can wait — statuses already came from disk cache
-        self.after(12000, lambda: self._refresh_releases(force=False, schedule_auto_update=False))
-        self.after(14000, lambda: self._check_launcher_update(force=False, prompt=True))
-        self.after(PERIODIC_CHECK_MS, self._periodic_check)
+        # let the window come up first, then poke github (was freezing boot before)
+        self.after(12000, lambda: self._refresh_releases(False, False))
+        self.after(14000, lambda: self._check_launcher_update(False, True))
+        self.after(HOUR_MS, self._periodic_check)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _apply_disk_caches(self) -> None:
-        for game in catalog.GAMES:
-            cached = github.read_cached_release(game, settings.DATA_DIR, allow_stale=True)
+    def _apply_disk_caches(self):
+        # show last known tags instantly from disk, network fills in later
+        for game in games.GAMES:
+            cached = gh.cached_game_release(game, config.DATA_DIR, True)
             if cached is not None:
                 self._releases[game.id] = cached
 
-    def _attach_game_icons(self, index: int = 0) -> None:
-        games = [g for g in catalog.GAMES if g.icon_file]
-        if index >= len(games):
+    def _attach_game_icons(self, index=0):
+        with_icons = [g for g in games.GAMES if g.icon_file]
+        if index >= len(with_icons):
             return
-        game = games[index]
+        game = with_icons[index]
         if game.id not in self._game_ctk_icons:
-            pil = icons.load_pil(game.icon_file, size=(72, 72))
+            pil = art.load_pil(game.icon_file, (72, 72))
             if pil is not None:
                 img = ctk.CTkImage(light_image=pil, dark_image=pil, size=(72, 72))
                 self._game_ctk_icons[game.id] = img
@@ -387,52 +309,47 @@ class App(ctk.CTk):
                     card.set_icon(img)
         self.after(1, lambda: self._attach_game_icons(index + 1))
 
-    def _start_header_animation(self) -> None:
+    def _start_header_animation(self):
         if not self._header_photos or not hasattr(self, "_header_label"):
             return
         self._anim_idx = 0
 
-        def tick() -> None:
+        def tick():
             if not self._header_photos:
                 return
             try:
-                self._header_label.configure(
-                    image=self._header_photos[self._anim_idx % len(self._header_photos)]
-                )
-            except Exception:  # noqa: BLE001
+                self._header_label.configure(image=self._header_photos[self._anim_idx % len(self._header_photos)])
+            except Exception:
                 return
             self._anim_idx += 1
-            # Slower loop — less UI jank while scrolling/clicking
             self._header_job = self.after(90, tick)
 
         tick()
 
-    def _seed_hint_installs(self) -> None:
-        changed = False
-        for game in catalog.GAMES:
+    def _seed_hint_installs(self):
+        # first launch used to treat every folder I already had as
+        # "needs update" and start downloading everything this cdid cause lag so yyyeeaahhhhh. just link them.
+        for game in games.GAMES:
             entry = self.installs.get(game.id) or {}
             exe_path = Path(str(entry.get("exe_path", "")))
             if exe_path.is_file():
                 continue
-            hinted = catalog.discover_hint_install(game)
+            hinted = games.peek_old_folder(game)
             if not hinted:
                 continue
-            exe = catalog.find_exe_in_dir(hinted, game.preferred_exes)
+            exe = games.hunt_exe(hinted, game.preferred_exes)
             if not exe:
                 continue
-            self.installs = settings.set_install(
+            self.installs = config.remember_install(
                 self.installs,
                 game.id,
-                install_dir=str(exe.parent),
-                exe_path=str(exe),
-                version_tag=str(entry.get("version_tag", "")),
+                str(exe.parent),
+                str(exe),
+                str(entry.get("version_tag", "")),
             )
-            changed = True
-        if changed:
-            self.installs = settings.load_installs()
+        self.installs = config.load_installs()
 
-    def _build(self) -> None:
-        # Splash left row 0 weighted — reset so the header stays compact
+    def _build(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=0)
@@ -445,79 +362,38 @@ class App(ctk.CTk):
 
         brand = ctk.CTkFrame(top, fg_color="transparent")
         brand.grid(row=0, column=0, padx=(12, 8), pady=4, sticky="w")
-        # Continuous animated GIF mark (Desktop EXE icons cannot animate on Windows)
         self._header_label = tk.Label(brand, text="", bg=PANEL, bd=0, highlightthickness=0)
         self._header_label.pack(side="left", padx=(0, 8))
         if self._header_photos:
             self._header_label.configure(image=self._header_photos[0])
-        elif branding.LOGO_PNG.is_file():
+        elif art.LOGO_PNG.is_file():
             from PIL import Image, ImageTk
 
-            pil = Image.open(branding.LOGO_PNG).convert("RGBA").resize((40, 40), Image.Resampling.LANCZOS)
+            pil = Image.open(art.LOGO_PNG).convert("RGBA").resize((40, 40), Image.Resampling.LANCZOS)
             photo = ImageTk.PhotoImage(pil)
             self._header_photos = [photo]
             self._header_label.configure(image=photo)
-        ctk.CTkLabel(
-            brand,
-            text=APP_NAME,
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=TEXT,
-        ).pack(side="left")
+        ctk.CTkLabel(brand, text=APP_NAME, font=ctk.CTkFont(size=20, weight="bold"), text_color=TEXT).pack(side="left")
 
         self.library_var = ctk.StringVar(value=str(self.settings.get("library_root", "")))
         lib_row = ctk.CTkFrame(top, fg_color="transparent")
         lib_row.grid(row=0, column=1, sticky="ew", padx=8, pady=4)
         lib_row.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(lib_row, text="Library", text_color=MUTED).grid(row=0, column=0, padx=(0, 6))
-        ctk.CTkEntry(lib_row, textvariable=self.library_var, height=28).grid(
-            row=0, column=1, sticky="ew"
-        )
-        ctk.CTkButton(lib_row, text="…", width=36, height=28, command=self._pick_library).grid(
-            row=0, column=2, padx=(6, 0)
-        )
+        ctk.CTkEntry(lib_row, textvariable=self.library_var, height=28).grid(row=0, column=1, sticky="ew")
+        ctk.CTkButton(lib_row, text="…", width=36, height=28, command=self._pick_library).grid(row=0, column=2, padx=(6, 0))
 
-        ctk.CTkButton(
-            top,
-            text="Refresh",
-            width=90,
-            height=28,
-            command=lambda: self._refresh_releases(True, schedule_auto_update=True),
-        ).grid(row=0, column=2, padx=6, pady=4)
-        ctk.CTkButton(top, text="Settings", width=90, height=28, command=self._open_settings).grid(
-            row=0, column=3, padx=(6, 12), pady=4
-        )
+        ctk.CTkButton(top, text="Refresh", width=90, height=28, command=lambda: self._refresh_releases(True, True)).grid(row=0, column=2, padx=6, pady=4)
+        ctk.CTkButton(top, text="Settings", width=90, height=28, command=self._open_settings).grid(row=0, column=3, padx=(6, 12), pady=4)
 
         self._notify = ctk.CTkFrame(self, fg_color="#2a2416", corner_radius=0)
         self._notify.grid(row=1, column=0, sticky="ew")
         self._notify.grid_columnconfigure(0, weight=1)
         self._notify_var = ctk.StringVar(value="")
-        ctk.CTkLabel(
-            self._notify,
-            textvariable=self._notify_var,
-            text_color="#f0e6c8",
-            anchor="w",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        ).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
-        self._notify_action_btn = ctk.CTkButton(
-            self._notify,
-            text="Update",
-            width=110,
-            height=28,
-            fg_color=WARN,
-            hover_color=WARN_HOVER,
-            text_color="#1a1a1a",
-            command=self._on_notify_action,
-        )
+        ctk.CTkLabel(self._notify, textvariable=self._notify_var, text_color="#f0e6c8", anchor="w", font=ctk.CTkFont(size=13, weight="bold")).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
+        self._notify_action_btn = ctk.CTkButton(self._notify, text="Update", width=110, height=28, fg_color=WARN, hover_color=WARN_HOVER, text_color="#1a1a1a", command=self._on_notify_action)
         self._notify_action_btn.grid(row=0, column=1, padx=6, pady=6)
-        ctk.CTkButton(
-            self._notify,
-            text="Dismiss",
-            width=80,
-            height=28,
-            fg_color="transparent",
-            hover_color="#3a3424",
-            command=self._hide_notify,
-        ).grid(row=0, column=2, padx=(0, 12), pady=6)
+        ctk.CTkButton(self._notify, text="Dismiss", width=80, height=28, fg_color="transparent", hover_color="#3a3424", command=self._hide_notify).grid(row=0, column=2, padx=(0, 12), pady=6)
         self._notify_action = ""
         self._hide_notify()
 
@@ -525,56 +401,37 @@ class App(ctk.CTk):
         scroll.grid(row=2, column=0, sticky="nsew", padx=10, pady=(4, 4))
         scroll.grid_columnconfigure(0, weight=1)
 
-        for i, game in enumerate(catalog.GAMES):
-            card = GameCard(
+        i = 0
+        for game in games.GAMES:
+            card = PortRow(
                 scroll,
                 game,
-                on_launch=self._launch_game,
-                on_install=self._install_game,
-                on_browse=self._browse_game,
-                on_folder=self._open_game_folder,
-                on_changelog=self._show_game_changelog,
-                on_apworld=self._download_apworld,
-                icon_image=self._game_ctk_icons.get(game.id),
+                self._launch_game,
+                self._install_game,
+                self._browse_game,
+                self._open_game_folder,
+                self._show_game_changelog,
+                self._download_apworld,
+                self._game_ctk_icons.get(game.id),
             )
             card.grid(row=i, column=0, sticky="ew", pady=(0, 4))
             self._cards[game.id] = card
             self._update_card_status(game)
+            i += 1
 
         foot = ctk.CTkFrame(self, fg_color=PANEL, corner_radius=0)
         foot.grid(row=3, column=0, sticky="ew")
         foot.grid_columnconfigure(0, weight=1)
-        self.status_var = ctk.StringVar(
-            value="Tracks latest releases from github.com/HarbourMasters. Provide your own legal ROMs."
-        )
-        ctk.CTkLabel(
-            foot,
-            textvariable=self.status_var,
-            text_color=MUTED,
-            anchor="w",
-            font=ctk.CTkFont(size=12),
-        ).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
+        self.status_var = ctk.StringVar(value="Pulls latest builds from gh.com/HarbourMasters. Use your own legal ROMs.")
+        ctk.CTkLabel(foot, textvariable=self.status_var, text_color=MUTED, anchor="w", font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="ew", padx=(16, 8), pady=8)
 
-        self._launcher_version_var = ctk.StringVar(value=f"v{APP_VERSION}")
-        ctk.CTkLabel(
-            foot,
-            textvariable=self._launcher_version_var,
-            text_color=MUTED,
-            font=ctk.CTkFont(size=12),
-        ).grid(row=0, column=1, padx=(8, 6), pady=8)
+        self._launcher_version_var = ctk.StringVar(value="v" + APP_VERSION)
+        ctk.CTkLabel(foot, textvariable=self._launcher_version_var, text_color=MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=1, padx=(8, 6), pady=8)
 
-        self._launcher_update_btn = ctk.CTkButton(
-            foot,
-            text="Update Launcher",
-            width=130,
-            height=28,
-            fg_color="#3a4555",
-            hover_color="#2f3947",
-            command=self._on_footer_launcher_update,
-        )
+        self._launcher_update_btn = ctk.CTkButton(foot, text="Update Launcher", width=130, height=28, fg_color="#3a4555", hover_color="#2f3947", command=self._on_footer_launcher_update)
         self._launcher_update_btn.grid(row=0, column=2, padx=6, pady=6)
 
-        self._discord_icon = branding.load_discord_ctk_image((24, 24))
+        self._discord_icon = art.load_discord_ctk_image((24, 24))
         discord_btn = ctk.CTkButton(
             foot,
             text="" if self._discord_icon else "Discord",
@@ -589,46 +446,45 @@ class App(ctk.CTk):
         discord_btn.grid(row=0, column=3, padx=(0, 12), pady=6, sticky="e")
         self._refresh_launcher_footer()
 
-    def _set_status(self, text: str) -> None:
+    def _set_status(self, text):
         self.status_var.set(text)
 
-    def _hide_notify(self) -> None:
+    def _hide_notify(self):
         self._notify_action = ""
         self._notify_var.set("")
         self._notify.grid_remove()
 
-    def _show_notify(self, text: str, *, action: str, button: str = "Update") -> None:
+    def _show_notify(self, text, action, button="Update"):
         self._notify_action = action
         self._notify_var.set(text)
         self._notify_action_btn.configure(text=button)
         self._notify.grid()
 
-    def _on_notify_action(self) -> None:
-        action = self._notify_action
-        if action == "games":
+    def _on_notify_action(self):
+        if self._notify_action == "games":
             self._hide_notify()
             self._queue_auto_updates()
-        elif action == "launcher":
+        elif self._notify_action == "launcher":
             self._hide_notify()
             self._start_launcher_update()
 
-    def _open_discord(self) -> None:
-        webbrowser.open(branding.DISCORD_URL)
+    def _open_discord(self):
+        webbrowser.open(art.DISCORD_URL)
 
-    def _periodic_check(self) -> None:
+    def _periodic_check(self):
         if not self._busy and not self._auto_updating:
-            self._refresh_releases(force=False, schedule_auto_update=True)
-            self._check_launcher_update(force=False, prompt=True)
-        self.after(PERIODIC_CHECK_MS, self._periodic_check)
+            self._refresh_releases(False, True)
+            self._check_launcher_update(False, True)
+        self.after(HOUR_MS, self._periodic_check)
 
-    def _pick_library(self) -> None:
+    def _pick_library(self):
         path = filedialog.askdirectory(title="Library root", initialdir=self.library_var.get() or None)
         if path:
             self.library_var.set(path)
             self.settings["library_root"] = path
-            settings.save_settings(self.settings)
+            config.save_settings(self.settings)
 
-    def _open_settings(self) -> None:
+    def _open_settings(self):
         win = ctk.CTkToplevel(self)
         win.title("Settings")
         win.geometry("560x480")
@@ -639,15 +495,13 @@ class App(ctk.CTk):
         lib_var = ctk.StringVar(value=str(self.settings.get("library_root", "")))
         ctk.CTkEntry(win, textvariable=lib_var, width=500).pack(padx=16, fill="x")
 
-        ctk.CTkLabel(win, text="Archipelago custom worlds folder (for oot_soh.apworld)").pack(
-            anchor="w", padx=16, pady=(16, 4)
-        )
+        ctk.CTkLabel(win, text="Archipelago custom worlds folder (for oot_soh.apworld)").pack(anchor="w", padx=16, pady=(16, 4))
         ap_var = ctk.StringVar(value=str(self.settings.get("archipelago_custom_worlds", "")))
         ap_row = ctk.CTkFrame(win, fg_color="transparent")
         ap_row.pack(fill="x", padx=16)
         ctk.CTkEntry(ap_row, textvariable=ap_var).pack(side="left", fill="x", expand=True)
 
-        def pick_ap() -> None:
+        def pick_ap():
             path = filedialog.askdirectory(title="Archipelago custom worlds")
             if path:
                 ap_var.set(path)
@@ -655,11 +509,7 @@ class App(ctk.CTk):
         ctk.CTkButton(ap_row, text="…", width=36, command=pick_ap).pack(side="left", padx=(6, 0))
 
         auto_var = ctk.BooleanVar(value=bool(self.settings.get("auto_update", True)))
-        ctk.CTkCheckBox(
-            win,
-            text="Auto-update installed games when HarbourMasters publishes a new release",
-            variable=auto_var,
-        ).pack(anchor="w", padx=16, pady=(18, 4))
+        ctk.CTkCheckBox(win, text="Auto-update installed games when HarbourMasters publishes a new release", variable=auto_var).pack(anchor="w", padx=16, pady=(18, 4))
         ctk.CTkLabel(
             win,
             text="Only games this launcher installed (known version). Detected/linked folders stay until you click Update.",
@@ -671,156 +521,128 @@ class App(ctk.CTk):
         ).pack(anchor="w", padx=16, pady=(0, 8))
 
         apworld_var = ctk.BooleanVar(value=bool(self.settings.get("auto_update_apworld", True)))
-        ctk.CTkCheckBox(
-            win,
-            text="Also auto-download oot_soh.apworld when Archipelago SoH updates",
-            variable=apworld_var,
-        ).pack(anchor="w", padx=16, pady=(4, 4))
+        ctk.CTkCheckBox(win, text="Also auto-download oot_soh.apworld when Archipelago SoH updates", variable=apworld_var).pack(anchor="w", padx=16, pady=(4, 4))
 
         launcher_var = ctk.BooleanVar(value=bool(self.settings.get("check_launcher_updates", True)))
-        ctk.CTkCheckBox(
-            win,
-            text="Check for ShipYard launcher updates on startup",
-            variable=launcher_var,
-        ).pack(anchor="w", padx=16, pady=(4, 4))
+        ctk.CTkCheckBox(win, text="Check for ShipYard launcher updates on startup", variable=launcher_var).pack(anchor="w", padx=16, pady=(4, 4))
 
-        def save() -> None:
+        def save():
             self.settings["library_root"] = lib_var.get().strip()
             self.settings["archipelago_custom_worlds"] = ap_var.get().strip()
             self.settings["auto_update"] = bool(auto_var.get())
             self.settings["auto_update_apworld"] = bool(apworld_var.get())
             self.settings["check_launcher_updates"] = bool(launcher_var.get())
             self.library_var.set(self.settings["library_root"])
-            settings.save_settings(self.settings)
+            config.save_settings(self.settings)
             win.destroy()
             self._set_status("Settings saved.")
 
         btn_row = ctk.CTkFrame(win, fg_color="transparent")
         btn_row.pack(pady=(18, 8))
-        ctk.CTkButton(
-            btn_row,
-            text="Check for launcher update",
-            width=190,
-            command=lambda: self._check_launcher_update(force=True, prompt=True),
-        ).pack(side="left", padx=6)
-        ctk.CTkButton(
-            btn_row,
-            text="Save",
-            width=100,
-            fg_color=ACCENT,
-            hover_color=ACCENT_HOVER,
-            command=save,
-        ).pack(side="left", padx=6)
+        ctk.CTkButton(btn_row, text="Check for launcher update", width=190, command=lambda: self._check_launcher_update(True, True)).pack(side="left", padx=6)
+        ctk.CTkButton(btn_row, text="Save", width=100, fg_color=ACCENT, hover_color=ACCENT_HOVER, command=save).pack(side="left", padx=6)
 
         ctk.CTkLabel(
             win,
-            text=f"ShipYard v{APP_VERSION}\nCreated by RaccoonCloud for the Harbour Masters team and community",
+            text="ShipYard v%s\nCreated by RaccoonCloud for the Harbour Masters team and community" % APP_VERSION,
             text_color=MUTED,
             font=ctk.CTkFont(size=12),
             justify="center",
         ).pack(pady=(8, 16))
 
-    def _install_record(self, game_id: str) -> dict[str, Any]:
+    def _install_record(self, game_id):
         return dict(self.installs.get(game_id) or {})
 
-    def _exe_for(self, game: GameDef) -> Path | None:
+    def _exe_for(self, game):
         entry = self._install_record(game.id)
         exe = Path(str(entry.get("exe_path", "")))
         if exe.is_file():
             return exe
         install_dir = Path(str(entry.get("install_dir", "")))
         if install_dir.is_dir():
-            found = catalog.find_exe_in_dir(install_dir, game.preferred_exes)
+            found = games.hunt_exe(install_dir, game.preferred_exes)
             if found:
                 return found
         return None
 
-    def _needs_update(self, game: GameDef) -> bool:
-        """True when installed version is known and differs from latest stable."""
+    def _needs_update(self, game):
+        # only auto-update and ONLY if I know what version I installed as this could cause laaaaaggg again and that wasnt fun to sort
+        # linked folders with no tag stay alone until you click Update.
         if not self._exe_for(game):
             return False
         release = self._releases.get(game.id)
         if not release or not release.tag or not release.windows_zip:
             return False
-        installed_tag = str(self._install_record(game.id).get("version_tag", "") or "")
-        # Missing tag = discovered/linked install we have not tracked yet.
-        # Do not auto-download in that case (first launch used to re-pull everything).
-        if not installed_tag:
-            return False
-        return installed_tag != release.tag
+        installed = str(self._install_record(game.id).get("version_tag", "") or "")
+        # no version saved = I only linked HM folder. leave it alone as it could couse breaking and the headache isnt worth it atm
 
-    def _update_card_status(self, game: GameDef) -> None:
+        # until they hit Update on that one game.
+        if not installed:
+            return False
+        return installed != release.tag
+
+    def _update_card_status(self, game):
         card = self._cards[game.id]
         entry = self._install_record(game.id)
         exe = self._exe_for(game)
-        installed_tag = str(entry.get("version_tag", "") or "")
+        installed = str(entry.get("version_tag", "") or "")
         release = self._releases.get(game.id)
         latest = release.tag if release else ""
-        body = (release.body if release else "") or ""
+        body = ""
+        if release and release.body:
+            body = release.body
 
-        card.set_versions(installed=installed_tag if exe else "—", latest=latest or "—")
+        if exe:
+            card.set_versions(installed, latest or "—")
+        else:
+            card.set_versions("—", latest or "—")
 
         if not exe:
             status = "Not installed"
             if latest:
-                status += f"  ·  latest {latest}"
+                status += "  ·  latest " + latest
         else:
-            status = f"Ready  ·  {exe.name}"
-            if latest and installed_tag and latest != installed_tag:
-                status += f"  ·  UPDATE AVAILABLE ({latest})"
-            elif latest and not installed_tag:
-                status += f"  ·  version unknown (use Update to sync)"
+            status = "Ready  ·  " + exe.name
+            if latest and installed and latest != installed:
+                status += "  ·  UPDATE AVAILABLE (" + latest + ")"
+            elif latest and not installed:
+                status += "  ·  version unknown (use Update to sync)"
             elif latest:
                 status += "  ·  up to date"
         card.status_var.set(status)
         card.launch_btn.configure(state="normal" if exe else "disabled")
-        # Show Update for a known outdated tag, or for a linked install with no tag
-        # (manual only — auto-update uses _needs_update and skips unknown tags).
-        show_update = bool(
-            exe
-            and latest
-            and ((installed_tag and latest != installed_tag) or not installed_tag)
-        )
-        card.set_installed(bool(exe))
+
+        show_update = False
+        if exe and latest:
+            if (installed and latest != installed) or (not installed):
+                show_update = True
+        card.remember_installed(bool(exe))
         card.set_update_available(show_update, latest if show_update else "")
         card.set_changelog_available(bool(body.strip()) or bool(latest))
 
-    def _show_game_changelog(self, game: GameDef) -> None:
+    def _show_game_changelog(self, game):
+        # What's new — I just show the github release body in a window SIMPLES!!
         release = self._releases.get(game.id)
         if release is None:
-            messagebox.showinfo(APP_NAME, f"No release info yet for {game.name}. Try Refresh.")
+            messagebox.showinfo(APP_NAME, "No release info yet for %s. Try Refresh." % game.name)
             return
         body = (release.body or "").strip()
         if not body:
             if release.html_url:
-                if messagebox.askyesno(
-                    APP_NAME,
-                    f"No changelog text was published for {game.name} {release.tag}.\n\n"
-                    "Open the GitHub release page instead?",
-                ):
+                if messagebox.askyesno(APP_NAME, "No changelog text was published for %s %s.\n\nOpen the GitHub release page instead?" % (game.name, release.tag)):
                     webbrowser.open(release.html_url)
             else:
-                messagebox.showinfo(APP_NAME, f"No changelog available for {game.name}.")
+                messagebox.showinfo(APP_NAME, "No changelog available for %s." % game.name)
             return
-        self._open_changelog_window(
-            title=f"{game.name} — {release.tag}",
-            body=body,
-            html_url=release.html_url,
-        )
+        self._open_changelog_window(game.name + " — " + release.tag, body, release.html_url)
 
-    def _open_changelog_window(self, *, title: str, body: str, html_url: str = "") -> None:
+    def _open_changelog_window(self, title, body, html_url=""):
         win = ctk.CTkToplevel(self)
         win.title(title)
         win.geometry("720x480")
         win.transient(self)
         win.grab_set()
-        ctk.CTkLabel(
-            win,
-            text=title,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=TEXT,
-            anchor="w",
-        ).pack(fill="x", padx=16, pady=(16, 8))
+        ctk.CTkLabel(win, text=title, font=ctk.CTkFont(size=16, weight="bold"), text_color=TEXT, anchor="w").pack(fill="x", padx=16, pady=(16, 8))
         box = ctk.CTkTextbox(win, wrap="word", font=ctk.CTkFont(size=13))
         box.pack(fill="both", expand=True, padx=16, pady=(0, 8))
         box.insert("1.0", body)
@@ -828,114 +650,80 @@ class App(ctk.CTk):
         row = ctk.CTkFrame(win, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=(0, 16))
         if html_url:
-            ctk.CTkButton(
-                row,
-                text="Open on GitHub",
-                width=140,
-                command=lambda: webbrowser.open(html_url),
-            ).pack(side="left")
+            ctk.CTkButton(row, text="Open on GitHub", width=140, command=lambda: webbrowser.open(html_url)).pack(side="left")
         ctk.CTkButton(row, text="Close", width=100, command=win.destroy).pack(side="right")
 
-    def _refresh_launcher_footer(self) -> None:
+    def _refresh_launcher_footer(self):
         release = self._launcher_release
         if release and is_newer(release.tag, APP_VERSION):
-            self._launcher_version_var.set(f"v{APP_VERSION}  →  {release.tag}")
-            self._launcher_update_btn.configure(
-                text="Update Launcher",
-                fg_color=WARN,
-                hover_color=WARN_HOVER,
-                text_color="#1a1a1a",
-                state="normal",
-            )
+            self._launcher_version_var.set("v%s  →  %s" % (APP_VERSION, release.tag))
+            self._launcher_update_btn.configure(text="Update Launcher", fg_color=WARN, hover_color=WARN_HOVER, text_color="#1a1a1a", state="normal")
         else:
-            self._launcher_version_var.set(f"ShipYard v{APP_VERSION}")
-            self._launcher_update_btn.configure(
-                text="Update Launcher",
-                fg_color="#3a4555",
-                hover_color="#2f3947",
-                text_color="#DCE4EE",
-                state="normal",
-            )
+            self._launcher_version_var.set("ShipYard v" + APP_VERSION)
+            self._launcher_update_btn.configure(text="Update Launcher", fg_color="#3a4555", hover_color="#2f3947", text_color="#DCE4EE", state="normal")
 
-    def _on_footer_launcher_update(self) -> None:
+    def _on_footer_launcher_update(self):
         release = self._launcher_release
         if release and is_newer(release.tag, APP_VERSION):
             body = (release.body or "").strip()
             if body:
-                preview = body if len(body) < 1200 else body[:1200] + "\n\n…"
-                if messagebox.askyesno(
-                    APP_NAME,
-                    f"ShipYard {release.tag}\n\n{preview}\n\nUpdate launcher now?",
-                ):
+                preview = body
+                if len(preview) >= 1200:
+                    preview = preview[:1200] + "\n\n…"
+                if messagebox.askyesno(APP_NAME, "ShipYard %s\n\n%s\n\nUpdate launcher now?" % (release.tag, preview)):
                     self._start_launcher_update()
                 return
-            if messagebox.askyesno(
-                APP_NAME,
-                f"Update ShipYard from v{APP_VERSION} to {release.tag}?",
-            ):
+            if messagebox.askyesno(APP_NAME, "Update ShipYard from v%s to %s?" % (APP_VERSION, release.tag)):
                 self._start_launcher_update()
             return
-        self._check_launcher_update(force=True, prompt=True)
+        self._check_launcher_update(True, True)
 
-    def _games_updates_pending(self) -> list[GameDef]:
-        return [g for g in catalog.GAMES if self._needs_update(g)]
+    def _games_updates_pending(self):
+        out = []
+        for g in games.GAMES:
+            if self._needs_update(g):
+                out.append(g)
+        return out
 
-    def _notify_game_updates(self) -> None:
+    def _notify_game_updates(self):
         pending = self._games_updates_pending()
         if not pending:
             if self._notify_action == "games":
                 self._hide_notify()
             return
         names = ", ".join(g.name for g in pending)
-        self._show_notify(
-            f"Game update available: {names}",
-            action="games",
-            button="Update games",
-        )
+        self._show_notify("Game update available: " + names, "games", "Update games")
         if not self._game_update_prompted and not bool(self.settings.get("auto_update", True)):
             self._game_update_prompted = True
-            messagebox.showinfo(
-                APP_NAME,
-                f"Updates are available for:\n\n{names}\n\n"
-                "Use the yellow banner, each game's Update button, or What's new for the changelog.",
-            )
+            messagebox.showinfo(APP_NAME, "Updates are available for:\n\n%s\n\nUse the yellow banner, each game's Update button, or What's new for the changelog." % names)
 
-    def _refresh_all_cards(self) -> None:
-        for game in catalog.GAMES:
+    def _refresh_all_cards(self):
+        for game in games.GAMES:
             self._update_card_status(game)
         self._notify_game_updates()
 
-    def _refresh_releases(
-        self,
-        force: bool = False,
-        *,
-        schedule_auto_update: bool = True,
-    ) -> None:
+    def _refresh_releases(self, force=False, schedule_auto_update=True):
         if self._busy or self._auto_updating:
             return
-        self._set_status("Checking github.com/HarbourMasters for latest releases…")
-
-        def work() -> None:
-            errors: list[str] = []
-            results: dict[str, github.LatestRelease] = {}
-            for game in catalog.GAMES:
+        self._set_status("Checking gh.com/HarbourMasters for latest releases…")
+#Easter EGG - IF DEV READ THIS TELL ME THE PASSWORD OF CLOUDRACCOON SO i KNOW YOU ARE CHECKING ME OVER AND JUDGING NO LIES HERE
+        def work():
+            errors = []
+            results = {}
+            for game in games.GAMES:
                 try:
-                    results[game.id] = github.fetch_latest_release(
-                        game, settings.DATA_DIR, force=force
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    errors.append(f"{game.name}: {exc}")
+                    results[game.id] = gh.grab_game_release(game, config.DATA_DIR, force)
+                except Exception as e:
+                    errors.append(game.name + ": " + str(e))
 
-            def done() -> None:
+            def done():
                 self._releases.update(results)
                 self._refresh_all_cards()
                 pending = self._games_updates_pending()
                 if errors:
                     self._set_status("Some release checks failed: " + "; ".join(errors[:2]))
                 elif pending:
-                    self._set_status(
-                        f"Update available for {len(pending)} installed game(s)."
-                    )
+                    self._set_status("Update available for %s installed game(s)." % len(pending))
                 else:
                     self._set_status("Release info updated from HarbourMasters.")
                 if schedule_auto_update and bool(self.settings.get("auto_update", True)):
@@ -945,24 +733,24 @@ class App(ctk.CTk):
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _check_launcher_update(self, *, force: bool = False, prompt: bool = True) -> None:
+    def _check_launcher_update(self, force=False, prompt=True):
         if not bool(self.settings.get("check_launcher_updates", True)) and not force:
             return
         if self._busy:
             return
 
-        def work() -> None:
+        def work():
             err = ""
-            release: github.LauncherRelease | None = None
+            release = None
             try:
-                release = github.fetch_launcher_latest(settings.DATA_DIR, force=force)
-            except Exception as exc:  # noqa: BLE001
-                err = str(exc)
+                release = gh.grab_launcher_release(config.DATA_DIR, force)
+            except Exception as e:
+                err = str(e)
 
-            def done() -> None:
+            def done():
                 if err:
                     if force:
-                        self._set_status(f"Launcher update check failed: {err}")
+                        self._set_status("Launcher update check failed: " + err)
                     self._refresh_launcher_footer()
                     return
                 if release is None:
@@ -972,95 +760,80 @@ class App(ctk.CTk):
                 self._refresh_launcher_footer()
                 if not is_newer(release.tag, APP_VERSION):
                     if force:
-                        messagebox.showinfo(
-                            APP_NAME,
-                            f"ShipYard is up to date (v{APP_VERSION}).",
-                        )
-                        self._set_status(f"Launcher up to date (v{APP_VERSION}).")
+                        messagebox.showinfo(APP_NAME, "ShipYard is up to date (v%s)." % APP_VERSION)
+                        self._set_status("Launcher up to date (v%s)." % APP_VERSION)
                     return
-                self._show_notify(
-                    f"ShipYard update available: {release.tag} (you have v{APP_VERSION})",
-                    action="launcher",
-                    button="Update launcher",
-                )
-                self._set_status(f"Launcher update available: {release.tag}")
+                self._show_notify("ShipYard update available: %s (you have v%s)" % (release.tag, APP_VERSION), "launcher", "Update launcher")
+                self._set_status("Launcher update available: " + release.tag)
                 if prompt and not self._launcher_prompted:
                     self._launcher_prompted = True
                     body = (release.body or "").strip()
-                    extra = f"\n\n{body[:800]}{'…' if len(body) > 800 else ''}" if body else ""
-                    if messagebox.askyesno(
-                        APP_NAME,
-                        f"A new ShipYard is available: {release.tag}\n\n"
-                        f"You are on v{APP_VERSION}.{extra}\n\n"
-                        "Update now from the launcher?",
-                    ):
+                    extra = ""
+                    if body:
+                        extra = "\n\n" + body[:800]
+                        if len(body) > 800:
+                            extra += "…"
+                    if messagebox.askyesno(APP_NAME, "A new ShipYard is available: %s\n\nYou are on v%s.%s\n\nUpdate now from the launcher?" % (release.tag, APP_VERSION, extra)):
                         self._start_launcher_update()
 
             self.after(0, done)
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _start_launcher_update(self) -> None:
+    def _start_launcher_update(self):
         release = self._launcher_release
         if release is None or release.asset is None:
-            messagebox.showwarning(
-                APP_NAME,
-                "No downloadable launcher package found on the latest release.",
-            )
+            messagebox.showwarning(APP_NAME, "No downloadable launcher package found on the latest release.")
             return
         if not getattr(sys, "frozen", False):
-            messagebox.showinfo(
-                APP_NAME,
-                "Self-update runs from the built ShipYard.exe.\n"
-                f"Open the release page instead:\n{release.html_url}",
-            )
+            messagebox.showinfo(APP_NAME, "Self-update runs from the built ShipYard.exe.\nOpen the release page instead:\n" + (release.html_url or ""))
             if release.html_url:
                 webbrowser.open(release.html_url)
             return
         if self._busy:
             return
         self._busy = True
-        self._set_status(f"Updating ShipYard to {release.tag}…")
+        self._set_status("Updating ShipYard to %s…" % release.tag)
 
-        def work() -> None:
-            err: Exception | None = None
+        def work():
+            err = None
             try:
-                self_update.apply_launcher_update(
-                    release.asset,
-                    downloads_dir=settings.DATA_DIR / "downloads",
-                    on_progress=lambda msg: self.after(0, lambda m=msg: self._set_status(m)),
-                )
-            except Exception as exc:  # noqa: BLE001
-                err = exc
+                gh.do_self_update(release.asset, config.DATA_DIR / "downloads", lambda msg: self.after(0, lambda m=msg: self._set_status(m)))
+            except Exception as e:
+                err = e
 
-            def done() -> None:
+            def done():
                 self._busy = False
                 if err is not None:
-                    messagebox.showerror(APP_NAME, f"Launcher update failed:\n{err}")
-                    self._set_status(f"Launcher update failed: {err}")
+                    messagebox.showerror(APP_NAME, "Launcher update failed:\n" + str(err))
+                    self._set_status("Launcher update failed: " + str(err))
                     return
-                # Apply script will restart us — close cleanly
                 self.destroy()
 
             self.after(0, done)
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _queue_auto_updates(self) -> None:
-        pending = [g for g in catalog.GAMES if self._needs_update(g)]
+    def _queue_auto_updates(self):
+        # line up outdated games and install them one at a time, IF ALL AT ONCE WEELLL YOU BROKE IT OR LAGGED IT
+        pending = []
+        for g in games.GAMES:
+            if self._needs_update(g):
+                pending.append(g)
         if not pending:
             return
-        # Avoid stacking duplicate queue entries
-        queued_ids = {g.id for g in self._update_queue}
+        already = set()
+        for g in self._update_queue:
+            already.add(g.id)
         for game in pending:
-            if game.id not in queued_ids:
+            if game.id not in already:
                 self._update_queue.append(game)
         names = ", ".join(g.name for g in pending)
-        self._set_status(f"New builds found — auto-updating: {names}")
+        self._set_status("New builds found — auto-updating: " + names)
         if not self._auto_updating:
             self._process_update_queue()
 
-    def _process_update_queue(self) -> None:
+    def _process_update_queue(self):
         if not self._update_queue:
             self._auto_updating = False
             self._set_status("All installed games are up to date.")
@@ -1069,58 +842,55 @@ class App(ctk.CTk):
             return
         self._auto_updating = True
         game = self._update_queue.pop(0)
-        self._install_game(game, auto=True)
+        self._install_game(game, True)
 
-    def _launch_game(self, game: GameDef) -> None:
+    def _launch_game(self, game):
         exe = self._exe_for(game)
         if not exe:
-            messagebox.showwarning(APP_NAME, f"{game.name} is not installed. Use Install / Update or Browse.")
+            messagebox.showwarning(APP_NAME, game.name + " is not installed. Use Install / Update or Browse.")
             return
         try:
-            launch.launch_exe(exe)
-            self._set_status(f"Launched {game.name}")
-        except Exception as exc:  # noqa: BLE001
-            messagebox.showerror(APP_NAME, str(exc))
+            dl.run_game(exe)
+            self._set_status("Launched " + game.name)
+        except Exception as e:
+            messagebox.showerror(APP_NAME, str(e))
 
-    def _open_game_folder(self, game: GameDef) -> None:
+    def _open_game_folder(self, game):
         entry = self._install_record(game.id)
         path = Path(str(entry.get("install_dir", "") or entry.get("exe_path", "")))
         if not path.exists():
-            lib = Path(self.library_var.get().strip() or r"D:\ShipYard") / game.id
-            path = lib
+            path = Path(self.library_var.get().strip() or r"D:\ShipYard") / game.id
         try:
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
-            launch.open_folder(path)
-        except Exception as exc:  # noqa: BLE001
-            messagebox.showerror(APP_NAME, str(exc))
+            dl.open_in_explorer(path)
+        except Exception as e:
+            messagebox.showerror(APP_NAME, str(e))
 
-    def _browse_game(self, game: GameDef) -> None:
+    def _browse_game(self, game):
         initial = self._install_record(game.id).get("install_dir") or self.library_var.get()
-        path = filedialog.askdirectory(title=f"Select {game.name} install folder", initialdir=initial or None)
+        path = filedialog.askdirectory(title="Select %s install folder" % game.name, initialdir=initial or None)
         if not path:
             return
         folder = Path(path)
-        exe = catalog.find_exe_in_dir(folder, game.preferred_exes)
+        exe = games.hunt_exe(folder, game.preferred_exes)
         if not exe:
-            messagebox.showwarning(
-                APP_NAME,
-                f"No matching executable found in:\n{folder}\n\nLooked for: {', '.join(game.preferred_exes)}",
-            )
+            messagebox.showwarning(APP_NAME, "No matching executable found in:\n%s\n\nLooked for: %s" % (folder, ", ".join(game.preferred_exes)))
             return
-        self.installs = settings.set_install(
+        self.installs = config.remember_install(
             self.installs,
             game.id,
-            install_dir=str(exe.parent),
-            exe_path=str(exe),
-            version_tag=str(self._install_record(game.id).get("version_tag", "")),
+            str(exe.parent),
+            str(exe),
+            str(self._install_record(game.id).get("version_tag", "")),
         )
         self._update_card_status(game)
-        self._set_status(f"Linked {game.name} → {exe}")
+        self._set_status("Linked %s → %s" % (game.name, exe))
         if bool(self.settings.get("auto_update", True)) and self._needs_update(game):
             self._queue_auto_updates()
 
-    def _install_game(self, game: GameDef, *, auto: bool = False) -> None:
+    def _install_game(self, game, auto=False):
+        # Install and Update both land here. auto=True means the queue kicked it off.
         if self._busy:
             if auto and game not in self._update_queue:
                 self._update_queue.append(game)
@@ -1128,66 +898,58 @@ class App(ctk.CTk):
         self._busy = True
         card = self._cards[game.id]
         card.set_busy(True)
-        label = "Auto-updating" if auto else "Installing"
-        self._set_status(f"{label} {game.name}…")
+        if auto:
+            self._set_status("Auto-updating " + game.name + "…")
+        else:
+            self._set_status("Installing " + game.name + "…")
 
         library_root = Path(self.library_var.get().strip() or r"D:\ShipYard")
         self.settings["library_root"] = str(library_root)
-        settings.save_settings(self.settings)
+        config.save_settings(self.settings)
 
-        def progress(msg: str) -> None:
-            self.after(0, lambda m=msg: self._set_status(f"{game.name}: {m}"))
+        def progress(msg):
+            self.after(0, lambda m=msg: self._set_status(game.name + ": " + m))
 
-        def work() -> None:
-            err: Exception | None = None
-            install_dir: Path | None = None
-            exe: Path | None = None
+        def work():
+            err = None
+            install_dir = None
+            exe = None
             tag = ""
             try:
-                release = github.fetch_latest_release(game, settings.DATA_DIR, force=False)
+                release = gh.grab_game_release(game, config.DATA_DIR, False)
                 self._releases[game.id] = release
                 if not release.windows_zip:
-                    raise RuntimeError(
-                        f"No Windows zip found on the latest release for {game.name}."
-                    )
+                    raise RuntimeError("No Windows zip found on the latest release for " + game.name + ".")
                 tag = release.tag
-                install_dir, exe = install.install_from_asset(
+                install_dir, exe = dl.yank_and_install(
                     game,
                     release.windows_zip,
-                    library_root=library_root,
-                    downloads_dir=settings.DATA_DIR / "downloads",
-                    version_tag=tag,
-                    on_progress=progress,
+                    library_root,
+                    config.DATA_DIR / "downloads",
+                    tag,
+                    progress,
                 )
-            except Exception as exc:  # noqa: BLE001
-                err = exc
+            except Exception as e:
+                err = e
 
-            def done() -> None:
+            def done():
                 self._busy = False
                 card.set_busy(False)
                 if err:
                     if not auto:
                         messagebox.showerror(APP_NAME, str(err))
-                    self._set_status(f"Failed: {err}")
+                    self._set_status("Failed: " + str(err))
                     self._update_card_status(game)
                     if auto:
                         self._process_update_queue()
                     return
-                assert install_dir and exe
-                self.installs = settings.set_install(
-                    self.installs,
-                    game.id,
-                    install_dir=str(install_dir),
-                    exe_path=str(exe),
-                    version_tag=tag,
-                )
+                self.installs = config.remember_install(self.installs, game.id, str(install_dir), str(exe), tag)
                 self._update_card_status(game)
-                self._set_status(f"{'Updated' if auto else 'Installed'} {game.name} ({tag})")
-                if (
-                    auto
-                    and game.id == "archipelago_soh"
-                    and bool(self.settings.get("auto_update_apworld", True))
-                ):
+                if auto:
+                    self._set_status("Updated %s (%s)" % (game.name, tag))
+                else:
+                    self._set_status("Installed %s (%s)" % (game.name, tag))
+                if auto and game.id == "archipelago_soh" and bool(self.settings.get("auto_update_apworld", True)):
                     self._maybe_auto_apworld(game)
                 if auto:
                     self._process_update_queue()
@@ -1196,29 +958,31 @@ class App(ctk.CTk):
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _maybe_auto_apworld(self, game: GameDef) -> None:
+    def _maybe_auto_apworld(self, game):
         dest = str(self.settings.get("archipelago_custom_worlds", "")).strip()
         if not dest:
             return
         release = self._releases.get(game.id)
-        asset = release.extras.get("oot_soh.apworld") if release else None
+        asset = None
+        if release:
+            asset = release.extras.get("oot_soh.apworld")
         if not asset:
             return
         dest_path = Path(dest)
 
-        def progress(msg: str) -> None:
+        def progress(msg):
             self.after(0, lambda m=msg: self._set_status(m))
 
-        def work() -> None:
+        def work():
             try:
-                out = install.download_extra_asset(asset, dest_path, on_progress=progress)
-                self.after(0, lambda: self._set_status(f"Updated apworld → {out}"))
-            except Exception as exc:  # noqa: BLE001
-                self.after(0, lambda: self._set_status(f"apworld update failed: {exc}"))
+                out = dl.grab_extra(asset, dest_path, progress)
+                self.after(0, lambda: self._set_status("Updated apworld → " + str(out)))
+            except Exception as e:
+                self.after(0, lambda: self._set_status("apworld update failed: " + str(e)))
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _download_apworld(self, game: GameDef) -> None:
+    def _download_apworld(self, game):
         if game.id != "archipelago_soh":
             return
         if self._busy:
@@ -1230,54 +994,57 @@ class App(ctk.CTk):
             if not dest:
                 return
             self.settings["archipelago_custom_worlds"] = dest
-            settings.save_settings(self.settings)
+            config.save_settings(self.settings)
 
         dest_path = Path(dest)
         self._busy = True
         self._set_status("Downloading oot_soh.apworld…")
 
-        def progress(msg: str) -> None:
+        def progress(msg):
             self.after(0, lambda m=msg: self._set_status(m))
 
-        def work() -> None:
-            err: Exception | None = None
-            out: Path | None = None
+        def work():
+            err = None
+            out = None
             try:
-                release = github.fetch_latest_release(game, settings.DATA_DIR, force=False)
+                release = gh.grab_game_release(game, config.DATA_DIR, False)
                 self._releases[game.id] = release
                 asset = release.extras.get("oot_soh.apworld")
                 if not asset:
                     raise RuntimeError("oot_soh.apworld not found on the latest Archipelago-SoH release.")
-                out = install.download_extra_asset(asset, dest_path, on_progress=progress)
-            except Exception as exc:  # noqa: BLE001
-                err = exc
+                out = dl.grab_extra(asset, dest_path, progress)
+            except Exception as e:
+                err = e
 
-            def done() -> None:
+            def done():
                 self._busy = False
                 if err:
                     messagebox.showerror(APP_NAME, str(err))
-                    self._set_status(f"Failed: {err}")
+                    self._set_status("Failed: " + str(err))
                     return
-                assert out
-                self._set_status(f"Saved apworld to {out}")
-                messagebox.showinfo(APP_NAME, f"Saved:\n{out}")
+                self._set_status("Saved apworld to " + str(out))
+                messagebox.showinfo(APP_NAME, "Saved:\n" + str(out))
 
             self.after(0, done)
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _on_close(self) -> None:
+    def _on_close(self):
+        # remember window size + library path so next launch is user custom because I got annoyed having to hit full screen each time it was annoying.
         if self._header_job is not None:
             try:
                 self.after_cancel(self._header_job)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         self.settings["window_geometry"] = self.geometry()
         self.settings["library_root"] = self.library_var.get().strip()
-        settings.save_settings(self.settings)
+        config.save_settings(self.settings)
         self.destroy()
 
 
-def run() -> None:
+def run():
+    # main.py calls this so it makes the app work near 99.9% of the time
     app = App()
     app.mainloop()
+
+#remeber to use close brackets at the end of fiel to make codes readbale work as i fudged alot up with basics

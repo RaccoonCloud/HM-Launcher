@@ -1,170 +1,66 @@
 # ShipYard
 
-**Version 1.9.0**
+Unofficial Windows launcher for Harbour Masters PC ports.
 
-Windows launcher for [Harbour Masters](https://github.com/HarbourMasters) PC ports.
+**Made by RaccoonCloud** — not an official HM app. I just got tired of hunting zips.
 
-**Created by RaccoonCloud** for the Harbour Masters team and everyone who wants an easy way to install, update, and launch the ports.
+Used to be called HarbourMaster. Renamed to ShipYard so people stop thinking it's from the HM team.
 
-(Formerly called HarbourMaster — renamed to avoid confusion with Harbour Masters.)
+Pulls the latest stable Win64 builds from the HarbourMasters GitHub repos. **Bring your own legal ROMs.** No dumps, no asking, no sharing.
 
-Game builds come from the HarbourMasters GitHub releases. You must use your own legally obtained ROMs / games. Do not share, ask for, or distribute ROMs.
+## What you get
 
----
+- SoH, 2Ship, Starship, SpaghettiKart, Ghostship, Lighthouse, Archipelago SoH in one window
+- Install / Update per game (not a bulk download-everything on first open)
+- Shows installed vs latest
+- What's new from the GitHub release notes
+- Optional auto-update for stuff this launcher already installed
+- Can update itself
+- Archipelago SoH: grab `oot_soh.apworld`
+- Discord button
 
-## What it does
+## Download
 
-- Lists Harbour Masters ports in one place (SoH, 2Ship, Starship, SpaghettiKart, Ghostship, Lighthouse, Archipelago SoH)
-- Downloads / updates the latest stable Win64 release from GitHub
-- Launches installed games, or lets you point at folders you already have
-- Shows **installed** and **latest** version on each game card
-- **Update** button per game when a newer build is available
-- **What's new** — view that release’s changelog from GitHub
-- Optional auto-update when a new game release is published
-- Footer shows **ShipYard version** plus **Update Launcher**
-- Archipelago SoH: download `oot_soh.apworld` into your Archipelago custom worlds folder
-- Quick link to the Harbour Masters Discord
+Grab `ShipYard-v1.9.0.zip` from Releases, extract it, run `ShipYard.exe`.
 
----
+Windows might yell about an unsigned app — More info → Run anyway. Normal for stuff that isn't code-signed.
 
-## Install (new users — ready-made EXE)
+## First run
 
-This GitHub repo is **source code**. The runnable Windows app is **`ShipYard.zip`**, which contains `ShipYard.exe`.
+1. Settings → set Library root (default `D:\ShipYard`, change if you need to)
+2. Optional: Archipelago custom worlds folder
+3. Hit Install on whatever you want
 
-Get the zip from whoever shared it with you (Discord / Drive / a GitHub **Release** if one is published). Then:
+## Build it yourself
 
-1. Download `ShipYard-v1.9.0.zip` (or the latest release zip)
-2. Extract it somewhere easy, for example:
-   - `C:\Games\ShipYard\`
-   - or your Desktop
-3. Double-click **ShipYard.exe**
-4. If Windows shows **Windows protected your PC**:
-   - Click **More info**
-   - Click **Run anyway**  
-   (Normal for apps that are not code-signed.)
-5. No Python install is required.
-
-That’s it — the launcher is ready.
-
-> Cloning this repository alone does **not** give you an EXE. Use the zip above, or build from source (below).
-
----
-
-## First-time setup
-
-1. Open **Settings**
-2. Set **Library root** to a folder you own  
-   - Default is `D:\ShipYard`  
-   - Change this if you don’t have a D: drive (e.g. `C:\Games\ShipYardLibrary`)
-3. (Optional) Set **Archipelago custom worlds** if you use Archipelago SoH
-4. Leave **Auto-update** on if you want new builds downloaded for you, or turn it off for manual-only updates
-5. Click **Save**
-
----
-
-## User guide
-
-### Install a game
-1. Find the game/project
-2. Click **Install**
-3. Wait for the download to finish  
-   Games install under your library root, each in its own subfolder
-
-### Launch a game
-1. Click **Launch**
-2. On first run, the port itself will ask for your legal ROM / game files  
-   ShipYard does not ship ROMs - ALWAYS OWN YOUR OWN LEGAL COPY OF THE GAME! DO NOT ASK FOR ROMS OR DISTRIBUTE ROMS!
-
-### Update a game
-1. When a newer build exists, the card shows a yellow **Update** button (and the installed vs latest versions)
-2. Click **Update**, or use the yellow banner / auto-update
-3. Click **What's new** to read the GitHub release notes for that build
-
-### Already installed somewhere else?
-1. Click **Browse**
-2. Pick the folder that contains the game’s `.exe`
-3. Use **Launch** after that
-
-### Open the install folder
-- Click **Folder** on the game card
-
-### Check for updates
-- Click **Refresh** in the top bar  
-- Or leave auto-update enabled (checks on a delay after startup, on Refresh, and about once an hour while open)
-- Footer **Update Launcher** checks/installs a newer ShipYard build
-
-### Archipelago SoH apworld
-1. Set your Archipelago custom worlds folder in **Settings**
-2. On the Archipelago SoH card, click **Get apworld**
-
-### Discord
-- Use the Discord button in the bottom-right footer to open the official Harbour Masters Discord
-
-- More help and information can be found here!
-
----
-
-## What gets created on your PC
-
-| Location | Purpose |
-|---|---|
-| Next to `ShipYard.exe` → `data\` | Launcher settings, install paths, release cache |
-| Your **Library root** | Downloaded game builds |
-| Archipelago custom worlds folder | `oot_soh.apworld` (if you use that feature) |
-
-You can move the whole ShipYard folder later; keep `ShipYard.exe` and its `data\` folder together.
-
----
-
-## Build from source (developers)
-
-If you only have this repo (no zip), build the EXE yourself:
-
-```powershell
-cd path\to\shipyard-launcher
+```
 pip install -r requirements.txt
-.\build_exe.bat
+build_exe.bat
 ```
 
-That creates **`ShipYard.exe` in the project root** (and also under `dist\` / Desktop while building).
+That spits out `ShipYard.exe`. Zip that + this README if you're sharing.
 
-Share with users by zipping that EXE + this README as `ShipYard-vX.Y.Z.zip`.
+Or just `python main.py` if you have Python.
 
-Run without building an EXE:
+## Looking for help
 
-```powershell
-pip install -r requirements.txt
-python main.py
-```
+It’s Python + CustomTkinter, hits GitHub for HM builds. UI is one big ridiculous file of like 900+ lines (I’m sorry). The rest is split into smaller bits.
 
-`build\` and `dist\` are temporary PyInstaller folders — not what end users need.
+Not gonna lie — maybe **10–15%** AI help, mostly on code breaks, line errors, and the extreme slow load when **v1.0** was first written. Kept it to a minimum. Still my project, still solo and limited.
 
----
+Getting a small team to help would be awesome — way better than copy-pasting errors into AI and pasting lines back. Real people who know HM ports / Python / UI would help this grow properly (and maybe help split that UI file someday).
+
+Testing, UI, new ports, install weirdness, whatever you’re good at — **DM me if you’re interested.**
 
 ## Credits
 
-- **Created by:** RaccoonCloud
-- **Made for:** Harbour Masters team and the community
-- **Game ports / releases:** [HarbourMasters](https://github.com/HarbourMasters) on GitHub
-- **Discord:** [Harbour Masters](https://discord.com/invite/shipofharkinian)
+- Me: **RaccoonCloud**
+- Ports / releases: [HarbourMasters](https://github.com/HarbourMasters)
+- Discord: https://discord.com/invite/shipofharkinian
 
-Please support the Harbour Masters projects and use only ROMs / dumps you personally own.
+Support the HM projects. Own your ROMs.
 
 ---
-
-## Future plans
-
-**v1.9.0** renames the launcher to ShipYard (same app, clearer name). More improvements are still planned, including:
-
-- Further UI polish and quality-of-life tweaks
-- Extra helper actions around installs and Archipelago workflows
-- Support for new Harbour Masters ports as they appear
-
-Feedback from the team and community will help decide what comes next.
-
-### Note on launcher self-update
-
-Self-update reads the latest release from `RaccoonCloud/ShipYard`. For other PCs to download that update automatically, the release assets need to be downloadable without a private login (make the repo public, or publish releases in a way that allows anonymous download).
 
 Special thank you for your friendship, support, and memories over the years!
 
@@ -186,4 +82,3 @@ Special thank you for your friendship, support, and memories over the years!
 - AGreenSpoon
 - Mellar
 - PapaChiefo
-
